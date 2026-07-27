@@ -1,4 +1,5 @@
 build/*
 docs/*
+!docs/sensor_telemetry_interface.md
 .github/*
 .vscode/*

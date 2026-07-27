@@ -56,3 +56,5 @@ ESP32无人机飞控固件
 # E1 Flight Agent 安全门
 
 Agent 只能通过专用 MAVLink 安全门请求心跳、解锁、上锁和急停。起飞、降落、悬停和移动技能在 E3T1 尚未实现，会被明确拒绝。固定协议、检查条件和返回码见 [docs/agent_safety_protocol.md](docs/agent_safety_protocol.md)。
+
+传感器遥测目前只提供电脑可验证的数据与健康状态接口，未接入任何实物驱动；后续高度和位置技能必须通过健康快照读取数据。字段、阈值和未来驱动需要补齐的资料见 [docs/sensor_telemetry_interface.md](docs/sensor_telemetry_interface.md)。
