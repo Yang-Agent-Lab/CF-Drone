@@ -6,9 +6,14 @@
 #include "vector.h"
 #include "quaternion.h"
 #include "util.h"
+#include "agent_safety.h"
 
 #define WIFI_ENABLED 1
 #define WEB_RC_ENABLED 1  // 启用Web遥控器
+
+#if WIFI_ENABLED
+#include <MAVLink.h>
+#endif
 
 float t = NAN; // current step time, s
 float dt; // time delta from previous step, s
