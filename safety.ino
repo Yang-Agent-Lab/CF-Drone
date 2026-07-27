@@ -1,6 +1,8 @@
 // 故障安全保护
 // Fail-safe functions
 
+#include "agent_safety.h"
+
 bool isInverted = false;  // 当前机身是否处于倒置（Z轴cos < INVERTED_COS_THRESHOLD）
 
 float rcLossTimeout = 1;        // RC丢失超时时间（秒），可通过参数 SF_RC_LOSS_TIME 配置
@@ -34,8 +36,62 @@ extern Vector ratesExtra;      // control.ino
 extern PID rollRatePID, pitchRatePID, yawRatePID;  // control.ino
 extern PID rollPID, pitchPID, yawPID;              // control.ino
 extern float motThrMin;        // control.ino
+extern bool imuOK;             // imu.ino
+
+agent_safety::Gate agentSafetyGate;
+
+agent_safety::Snapshot agentSafetySnapshot() {
+	agent_safety::Snapshot snapshot = {};
+	snapshot.armed = armed;
+	snapshot.throttle_low = isfinite(controlThrottle) &&
+	                        controlThrottle <= ARM_THROTTLE_LIMIT;
+	snapshot.battery_ok = isfinite(batteryVoltage) &&
+	                      batteryVoltage >= VBAT_WARN_THRESHOLD &&
+	                      batteryVoltage <= 4.4f;
+	snapshot.attitude_ok = imuOK && attitude.valid() &&
+	                       attitude.norm() >= 0.9f && attitude.norm() <= 1.1f;
+	snapshot.landed = landed;
+	if (snapshot.attitude_ok) {
+		Vector worldUp = Quaternion::rotateVector(Vector(0, 0, 1), attitude);
+		snapshot.inverted = worldUp.z < INVERTED_COS_THRESHOLD;
+	}
+	snapshot.manual_control_active =
+		controlTime > 0 && t - controlTime <= rcLossTimeout;
+	return snapshot;
+}
+
+void applyAgentSafetyDecision(const agent_safety::Decision& decision) {
+	if (decision.disarm) {
+		armed = false;
+		thrustTarget = 0.0f;
+	}
+	if (decision.arm) armed = true;
+}
+
+agent_safety::Result handleAgentSafetyCommand(
+	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,
+	uint32_t confirmation_code, bool arguments_zero) {
+	agent_safety::Decision decision = agentSafetyGate.handle(
+		now_ms, skill, request_id, confirmation_code, arguments_zero,
+		agentSafetySnapshot());
+	applyAgentSafetyDecision(decision);
+	return decision.result;
+}
+
+agent_safety::Result rejectAgentSafetyMessage() {
+	agent_safety::Decision decision = agentSafetyGate.rejectIllegalMessage();
+	applyAgentSafetyDecision(decision);
+	return decision.result;
+}
+
+void agentSafetyFailsafe() {
+	agent_safety::Decision decision =
+		agentSafetyGate.update(millis(), agentSafetySnapshot());
+	applyAgentSafetyDecision(decision);
+}
 
 void failsafe() {
+	agentSafetyFailsafe();
 	rcLossFailsafe();
 #if WEB_RC_ENABLED
 	webRCLossFailsafe();

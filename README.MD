@@ -52,3 +52,7 @@ ESP32无人机飞控固件
 * 大幅优化WEB遥控器
 * 添加web遥控器调试功能
 * 增加倒置保护，飞机长时间倒置判定为异常，停机避免损失扩大
+
+# E1 Flight Agent 安全门
+
+Agent 只能通过专用 MAVLink 安全门请求心跳、解锁、上锁和急停。起飞、降落、悬停和移动技能在 E3T1 尚未实现，会被明确拒绝。固定协议、检查条件和返回码见 [docs/agent_safety_protocol.md](docs/agent_safety_protocol.md)。
