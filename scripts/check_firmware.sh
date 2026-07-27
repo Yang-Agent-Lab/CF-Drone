@@ -2,9 +2,9 @@
 set -eu
 
 case "${1:-}" in
-	safety|sensors) ;;
+	safety|sensors|control) ;;
 	*)
-		echo "usage: $0 {safety|sensors}" >&2
+		echo "usage: $0 {safety|sensors|control}" >&2
 	exit 2
 		;;
 esac
@@ -20,6 +20,23 @@ if [ "$1" = "sensors" ]; then
 		sensor_telemetry.cpp tests/test_sensor_telemetry.cpp \
 		-o "$tmp_dir/test_sensor_telemetry"
 	"$tmp_dir/test_sensor_telemetry"
+	exit 0
+fi
+
+if [ "$1" = "control" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		sensor_telemetry.cpp flight_skills.cpp tests/test_flight_skills.cpp \
+		-o "$tmp_dir/test_flight_skills"
+	"$tmp_dir/test_flight_skills"
+
+	if grep -En \
+		'(motors\[|attitudeTarget|ratesTarget|torqueTarget|thrustTarget|MAVLINK|Arduino)' \
+		flight_skills.h flight_skills.cpp >/dev/null; then
+		echo "飞行技能状态机包含禁止的硬件或直控符号" >&2
+		exit 1
+	fi
+
+	echo "flight skill software-only boundary checks: PASS"
 	exit 0
 fi
 

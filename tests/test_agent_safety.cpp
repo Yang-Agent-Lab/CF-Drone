@@ -205,6 +205,8 @@ static void testUnimplementedHighLevelSkills() {
 		SKILL_LAND,
 		SKILL_HOLD,
 		SKILL_MOVE_BODY,
+		SKILL_YAW,
+		SKILL_RETURN_HOME,
 	};
 	for (unsigned int i = 0; i < sizeof(skills) / sizeof(skills[0]); ++i) {
 		Gate gate;
