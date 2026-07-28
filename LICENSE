@@ -1,21 +1,96 @@
-Commons Clause License Condition v1.0
+CF-Drone 附加许可条款 / CF-Drone Additional License Terms
+版本 1.1 | 2026-07-10
+著作权人：琛光科技 / CHERGLOWTECH
+主要商标：CHERGLOW®（申请中）| 琛光®（申请中）
 
-The Software is provided to you by the Licensor (琛光 / ChenGuang) under
-the License, as defined below, subject to the following condition.
+中文版本具有法律效力；英文版本仅供参考。如发生歧义，以中文版本为准。
+The Chinese version is legally binding. The English version is for reference only.
+In case of any conflict, the Chinese version shall prevail.
 
-Without limiting other conditions in the License, the grant of rights under
-the License will not include, and the License does not grant to you, the
-right to Sell the Software.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-For purposes of the foregoing, "Sell" means practicing any or all of the
-rights granted to you under the License in exchange for fee or other
-consideration (including without limitation fees for hosting or consulting/
-support services related to the Software), or producing hardware products
-for sale that incorporate or are derived from the Software, without prior
-written authorization from the Licensor.
+【第一条 商业限制 / Article 1: Commercial Restriction】
+（Commons Clause License Condition v1.0 强化版）
 
-Commercial use authorization: contact the trademark holder
-("琛光" registered trademark) for a commercial license.
+中文：
+在下方 GPL v3 授予的权利之外，本条款附加以下限制：
+未经著作权人书面授权，本许可证不授予任何以下行为的权利：
+以有偿方式（包括但不限于收费托管、咨询、支持服务）向他人提供本软件；
+或生产、销售任何整合或衍生自本软件的硬件产品（包括无人机整机、飞控模块及周边套件）。
+上述"销售"包括一切以直接或间接收费为目的的商业行为。
+
+English:
+In addition to the rights granted under GPL v3 below, the following restriction applies:
+Without prior written authorization from the Licensor, this license does not grant
+the right to Sell the Software — meaning: providing the Software for a fee (including
+hosting, consulting, or support services), or producing/selling any hardware products
+that incorporate or are derived from the Software (including complete drones, flight
+controller modules, and accessories).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【第二条 品牌归属强制保留 / Article 2: Mandatory Brand Attribution】
+
+中文：
+无论是否已获得商业授权，以任何形式分发、销售或提供本软件及衍生产品时，
+必须在以下位置完整保留品牌标识，不得删除、遮盖、替换或以其他方式规避：
+
+  (1) 固件串口启动输出信息中的 "CHERGLOW" 或 "琛光" 品牌名称；
+  (2) 网页遥控器界面的页面标题及页脚版权声明；
+  (3) 源代码各文件顶部的版权注释（如有）；
+  (4) 面向最终用户的产品说明、包装或宣传材料中，须注明本产品固件来源于
+      CHERGLOW CF-Drone 开源项目（https://oshwhub.com/songge8/project_qqqyfdkm）。
+
+违反本条款即构成对著作权人品牌权益的侵害，著作权人有权依据中国《商标法》
+及《著作权法》寻求法律救济。
+
+English:
+Regardless of whether commercial authorization has been obtained, any distribution,
+sale, or deployment of this software or derivative works must retain the following
+brand identifiers intact — they must not be removed, obscured, replaced, or otherwise
+circumvented:
+
+  (1) The brand name "CHERGLOW" or "琛光" in firmware serial startup output;
+  (2) Page title and copyright footer in the Web RC interface;
+  (3) Copyright comment headers in source code files (where present);
+  (4) End-user product documentation, packaging, or promotional materials must state
+      that the firmware originates from the CHERGLOW CF-Drone open-source project
+      (https://oshwhub.com/songge8/project_qqqyfdkm).
+
+Violation of this article constitutes infringement of the Licensor's brand rights.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【第三条 商业授权申请 / Article 3: Commercial License Application】
+
+中文：
+如需获得商业授权（包括生产销售、OEM/ODM 合作、品牌授权等），
+请通过以下方式联系著作权人：
+
+  商务邮箱：business@cherglowtech.com
+  开源主页：https://oshwhub.com/songge8/project_qqqyfdkm
+
+著作权人保留对商业授权申请进行审核及定价的全部权利。
+个人学习、教育研究及非商业用途不受本附加条款限制，仍适用 GPL v3 全部权利。
+
+English:
+For commercial authorization (including production/sales, OEM/ODM cooperation,
+or brand licensing), please contact the Licensor:
+
+  Business email: business@cherglowtech.com
+  Open-source page: https://oshwhub.com/songge8/project_qqqyfdkm
+
+The Licensor reserves the right to review and price commercial license applications.
+Personal, educational, and non-commercial use is not restricted by these additional
+terms and remains fully governed by GPL v3.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+以上附加条款由著作权人（琛光科技 / CHERGLOWTECH）依据 GPL v3 第7条
+授权人附加条款权利制定，不影响接受者在 GPL v3 下的其他权利。
+The above additional terms are established by the copyright holder (CHERGLOWTECH)
+pursuant to GPL v3 Section 7 additional terms permissions, and do not affect
+recipients' other rights under GPL v3.
 
 -------------------------------------------------------------------------------
 
