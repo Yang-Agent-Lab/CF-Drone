@@ -7,6 +7,7 @@
 #include "util.h"
 #include "agent_safety.h"
 #include "board_config.h"
+#include "flight_command_pipeline.h"
 
 // WiFi 和 Web 遥控器开关由 board_config.h 按芯片自动设置：
 // 如需手动覆盖，在此处 #undef 后重新 #define
