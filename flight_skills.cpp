@@ -465,6 +465,7 @@ Target Machine::landingTarget(
 		lock.altitude_m = origin_altitude_m_;
 		lock.yaw_deg = target_yaw_deg_;
 		last_target_ = lock;
+		if (fault_ == FAULT_NONE) completed_skill_ = SKILL_LAND;
 		active_skill_ = SKILL_NONE;
 		mission_state_ =
 			fault_ == FAULT_NONE ? MISSION_COMPLETE : MISSION_FAILED;
