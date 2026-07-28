@@ -8,13 +8,17 @@
 extern float channelZero[16];
 extern float channelMax[16];
 extern float rollChannel, pitchChannel, throttleChannel, yawChannel, modeChannel;
+#if WIFI_ENABLED
 extern int wifiMode, udpLocalPort, udpRemotePort;
+#endif
 extern int motorPins[4];
 extern int pwmFrequency, pwmResolution, pwmStop, pwmMin, pwmMax;
 extern float motThrMin;
 extern float motThrMax;
+#if WIFI_ENABLED
 extern int mavlinkSysId;
 extern Rate telemetrySlow, telemetryFast;
+#endif
 extern float rcLossTimeout, descendTime;
 extern int flightModes[3];
 extern Vector accBias, accScale;
@@ -178,6 +182,7 @@ Parameter parameters[] = {
 	{"RC_TX_PIN",   &rcTxPin,    setupRC}, // 遥测回传 GPIO 引脚（UART TX）；-1=不启用回传
 	{"RC_BAUD",     &rcBaud,     setupRC}, // 遥控串口波特率（bps）；SBUS=100000，CRSF=420000
 
+	#if WIFI_ENABLED
 	// ===== WiFi =====
 	{"WIFI_MODE",     &wifiMode},      // WiFi 工作模式：0=关闭，1=STA（连接已有热点），2=AP（自建热点）
 	{"WIFI_LOC_PORT", &udpLocalPort},  // 本地 UDP 监听端口（地面站发送到此端口）
@@ -187,6 +192,7 @@ Parameter parameters[] = {
 	{"MAV_SYS_ID",    &mavlinkSysId},       // MAVLink 系统 ID（1~254），区分多机时需唯一
 	{"MAV_RATE_SLOW", &telemetrySlow.rate}, // 慢速遥测发送频率（Hz），用于心跳、电池等低频数据
 	{"MAV_RATE_FAST", &telemetryFast.rate}, // 快速遥测发送频率（Hz），用于姿态、角速率等高频数据
+	#endif
 
 	// ===== 故障保护 =====
 	{"SF_RC_LOSS_TIME",  &rcLossTimeout}, // RC 信号丢失超时阈值（秒），超时后进入自动下降模式
