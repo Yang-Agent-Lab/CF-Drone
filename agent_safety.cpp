@@ -19,6 +19,8 @@ bool knownSkill(Skill skill) {
 		case SKILL_LAND:
 		case SKILL_HOLD:
 		case SKILL_MOVE_BODY:
+		case SKILL_YAW:
+		case SKILL_RETURN_HOME:
 			return true;
 	}
 	return false;
@@ -26,7 +28,8 @@ bool knownSkill(Skill skill) {
 
 bool unimplementedSkill(Skill skill) {
 	return skill == SKILL_TAKEOFF || skill == SKILL_LAND ||
-	       skill == SKILL_HOLD || skill == SKILL_MOVE_BODY;
+	       skill == SKILL_HOLD || skill == SKILL_MOVE_BODY ||
+	       skill == SKILL_YAW || skill == SKILL_RETURN_HOME;
 }
 
 }  // namespace

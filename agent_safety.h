@@ -20,6 +20,8 @@ enum Skill : uint16_t {
 	SKILL_LAND = 101,
 	SKILL_HOLD = 102,
 	SKILL_MOVE_BODY = 103,
+	SKILL_YAW = 104,
+	SKILL_RETURN_HOME = 105,
 };
 
 enum State : uint8_t {

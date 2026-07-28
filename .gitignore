@@ -1,5 +1,6 @@
 build/*
 docs/*
 !docs/sensor_telemetry_interface.md
+!docs/flight_skills_state_machine.md
 .github/*
 .vscode/*
