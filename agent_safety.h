@@ -54,10 +54,12 @@ enum Result : uint8_t {
 	RESULT_HEARTBEAT_STALE = 25,
 	RESULT_MANUAL_CONTROL_ACTIVE = 26,
 	RESULT_NOT_LANDED = 27,
+	RESULT_AGENT_NOT_ARMED = 28,
 	RESULT_FAULT_LATCHED = 30,
 	RESULT_UNKNOWN_SKILL = 31,
 	RESULT_INVALID_REQUEST = 32,
 	RESULT_ILLEGAL_MESSAGE = 33,
+	RESULT_FLIGHT_REJECTED = 34,
 };
 
 struct Snapshot {
@@ -90,9 +92,11 @@ public:
 
 	State state() const { return state_; }
 	Fault fault() const { return fault_; }
+	bool agentOwnsArm() const { return agent_owns_arm_; }
+	bool heartbeatFresh(uint32_t now_ms) const;
+	void commitFlightSkill(uint32_t request_id, Skill skill);
 
 private:
-	bool heartbeatFresh(uint32_t now_ms) const;
 	Decision latch(Fault fault, Result result);
 
 	State state_;

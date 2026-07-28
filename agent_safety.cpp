@@ -26,7 +26,7 @@ bool knownSkill(Skill skill) {
 	return false;
 }
 
-bool unimplementedSkill(Skill skill) {
+bool flightSkill(Skill skill) {
 	return skill == SKILL_TAKEOFF || skill == SKILL_LAND ||
 	       skill == SKILL_HOLD || skill == SKILL_MOVE_BODY ||
 	       skill == SKILL_YAW || skill == SKILL_RETURN_HOME;
@@ -110,12 +110,26 @@ Decision Gate::handle(uint32_t now_ms, Skill skill, uint32_t request_id,
 		return decision(RESULT_ACCEPTED);
 	}
 
-	if (unimplementedSkill(skill)) {
-		return decision(RESULT_NOT_IMPLEMENTED);
-	}
-
 	if (!heartbeatFresh(now_ms)) {
 		return latch(FAULT_HEARTBEAT_TIMEOUT, RESULT_HEARTBEAT_STALE);
+	}
+	if (flightSkill(skill)) {
+		if (state_ != STATE_AGENT_ARMED || !agent_owns_arm_ || !snapshot.armed) {
+			return decision(RESULT_AGENT_NOT_ARMED);
+		}
+		if (snapshot.manual_control_active) {
+			return latch(FAULT_MANUAL_TAKEOVER, RESULT_MANUAL_CONTROL_ACTIVE);
+		}
+		if (!snapshot.battery_ok) {
+			return latch(FAULT_LOW_BATTERY, RESULT_BATTERY_UNSAFE);
+		}
+		if (snapshot.inverted) {
+			return latch(FAULT_INVERTED, RESULT_INVERTED);
+		}
+		if (!snapshot.attitude_ok) {
+			return latch(FAULT_ATTITUDE_INVALID, RESULT_ATTITUDE_INVALID);
+		}
+		return decision(RESULT_ACCEPTED);
 	}
 	if (snapshot.armed) return decision(RESULT_ALREADY_ARMED);
 	if (!snapshot.throttle_low) return decision(RESULT_THROTTLE_NOT_LOW);
@@ -133,6 +147,12 @@ Decision Gate::handle(uint32_t now_ms, Skill skill, uint32_t request_id,
 	last_execution_request_ = request_id;
 	last_execution_skill_ = skill;
 	return decision(RESULT_ACCEPTED, true, false);
+}
+
+void Gate::commitFlightSkill(uint32_t request_id, Skill skill) {
+	last_execution_valid_ = true;
+	last_execution_request_ = request_id;
+	last_execution_skill_ = skill;
 }
 
 Decision Gate::update(uint32_t now_ms, const Snapshot& snapshot) {

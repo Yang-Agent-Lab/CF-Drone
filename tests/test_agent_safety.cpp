@@ -199,7 +199,7 @@ static void testInvalidRequestLatches() {
 	assert(bad_arguments.fault() == FAULT_ILLEGAL_COMMAND);
 }
 
-static void testUnimplementedHighLevelSkills() {
+static void testHighLevelSkillsNeedAgentArm() {
 	const Skill skills[] = {
 		SKILL_TAKEOFF,
 		SKILL_LAND,
@@ -211,12 +211,16 @@ static void testUnimplementedHighLevelSkills() {
 	for (unsigned int i = 0; i < sizeof(skills) / sizeof(skills[0]); ++i) {
 		Gate gate;
 		startSession(gate);
-		Decision decision = gate.handle(
+		Decision unarmed = gate.handle(
 			200, skills[i], 2, kConfirmationCode, true, safeSnapshot());
-		assert(decision.result == RESULT_NOT_IMPLEMENTED);
-		assert(gate.state() == STATE_READY);
-		assert(!decision.arm);
-		assert(!decision.disarm);
+		assert(unarmed.result == RESULT_AGENT_NOT_ARMED);
+		armSession(gate);
+		Snapshot armed = safeSnapshot();
+		armed.armed = true;
+		Decision decision = gate.handle(
+			300, skills[i], 3, kConfirmationCode, true, armed);
+		assert(decision.result == RESULT_ACCEPTED);
+		assert(!decision.arm && !decision.disarm);
 	}
 }
 
@@ -255,7 +259,7 @@ int main() {
 	testRuntimeHazards();
 	testUnknownSkillAndLatchedFault();
 	testInvalidRequestLatches();
-	testUnimplementedHighLevelSkills();
+	testHighLevelSkillsNeedAgentArm();
 	testForbiddenDirectMessagesAndCommands();
 	testEmergencyStopPriority();
 	puts("agent safety tests: PASS");

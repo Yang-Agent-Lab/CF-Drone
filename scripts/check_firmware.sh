@@ -54,8 +54,8 @@ if [ "$1" = "command" ]; then
 		echo "Agent入口没有调用v1解码器" >&2
 		exit 1
 	}
-	if grep -En 'flight_skills::Machine' agent_mavlink.ino safety.ino >/dev/null; then
-		echo "v1解码入口不得启动飞行技能状态机" >&2
+	if grep -En 'flight_skills::Machine' agent_mavlink.ino >/dev/null; then
+		echo "v1解码入口不得直接启动飞行技能状态机" >&2
 		exit 1
 	fi
 	exit 0
@@ -63,7 +63,8 @@ fi
 
 if [ "$1" = "pipeline" ]; then
 	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
-		sensor_telemetry.cpp flight_skills.cpp flight_command_v1.cpp \
+		agent_safety.cpp sensor_telemetry.cpp flight_skills.cpp \
+		flight_command_v1.cpp flight_command_pipeline.cpp \
 		tests/test_flight_command_pipeline.cpp -o "$tmp_dir/test_flight_command_pipeline"
 	"$tmp_dir/test_flight_command_pipeline"
 	exit 0
@@ -77,6 +78,19 @@ if grep -En \
 	'(motors|attitudeTarget|ratesTarget|torqueTarget|setParameter|doCommand|controlRoll|controlPitch|controlYaw|controlThrottle)' \
 	agent_mavlink.ino >/dev/null; then
 	echo "Agent MAVLink入口包含禁止的直控符号" >&2
+	exit 1
+fi
+
+grep -q 'agentFlightPipeline.handle' safety.ino || {
+	echo "生产安全门没有进入受保护飞行命令管线" >&2
+	exit 1
+}
+grep -q 'agentSensorTelemetry.snapshot' safety.ino || {
+	echo "生产飞行命令没有使用失败关闭的传感器快照" >&2
+	exit 1
+}
+if grep -En 'agentSensorTelemetry\.submit' safety.ino >/dev/null; then
+	echo "生产安全门不得伪造健康传感器数据" >&2
 	exit 1
 fi
 

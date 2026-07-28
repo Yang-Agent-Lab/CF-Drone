@@ -1,10 +1,12 @@
 #include "flight_command_v1.h"
+#include "flight_command_pipeline.h"
 
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
 
 using namespace flight_skills;
+using agent_safety::kConfirmationCode;
 using sensor_telemetry::BarometerSample;
 using sensor_telemetry::HealthySnapshot;
 using sensor_telemetry::OpticalFlowSample;
@@ -150,8 +152,175 @@ static void testInvalidV1CommandDoesNotStartMachine() {
 	assert(machine.activeSkill() == SKILL_NONE);
 }
 
+static void testGuardedPipelineNeedsBothAcceptances() {
+	flight_command_pipeline::Pipeline pipeline;
+	const uint64_t now = 100;
+	const agent_safety::Snapshot safety_snapshot = [] {
+		agent_safety::Snapshot snapshot = {};
+		snapshot.throttle_low = true;
+		snapshot.battery_ok = true;
+		snapshot.attitude_ok = true;
+		snapshot.landed = true;
+		return snapshot;
+	}();
+	Request request = decode(100, 3, 0.5f, 0.0f, 0.0f, SKILL_TAKEOFF);
+
+	flight_command_pipeline::Outcome heartbeat = pipeline.handle(
+		now, agent_safety::SKILL_HEARTBEAT, 1, kConfirmationCode, true,
+		Request(), safety_snapshot, vehicle(now, 0, 0, 0, 0, true),
+		sensors(now));
+	assert(heartbeat.result == agent_safety::RESULT_ACCEPTED);
+
+	flight_command_pipeline::Outcome unarmed = pipeline.handle(
+		now + 1, agent_safety::SKILL_TAKEOFF, request.request_id,
+		kConfirmationCode, true, request, safety_snapshot,
+		vehicle(now + 1, 0, 0, 0, 0, true), sensors(now + 1));
+	assert(unarmed.result == agent_safety::RESULT_AGENT_NOT_ARMED);
+	assert(pipeline.machine().activeSkill() == SKILL_NONE);
+
+	flight_command_pipeline::Outcome arm = pipeline.handle(
+		now + 2, agent_safety::SKILL_ARM, 2, kConfirmationCode, true,
+		Request(), safety_snapshot, vehicle(now + 2, 0, 0, 0, 0, true),
+		sensors(now + 2));
+	assert(arm.result == agent_safety::RESULT_ACCEPTED);
+	assert(arm.safety.arm);
+	agent_safety::Snapshot active_snapshot = safety_snapshot;
+	active_snapshot.armed = true;
+
+	flight_command_pipeline::Outcome accepted = pipeline.handle(
+		now + 3, agent_safety::SKILL_TAKEOFF, request.request_id,
+		kConfirmationCode, true, request, active_snapshot,
+		vehicle(now + 3), sensors(now + 3));
+	assert(accepted.result == agent_safety::RESULT_ACCEPTED);
+	assert(accepted.flight_result == RESULT_ACCEPTED);
+	assert(pipeline.machine().activeSkill() == SKILL_TAKEOFF);
+
+	flight_command_pipeline::Outcome duplicate = pipeline.handle(
+		now + 4, agent_safety::SKILL_TAKEOFF, request.request_id,
+		kConfirmationCode, true, request, active_snapshot,
+		vehicle(now + 4), sensors(now + 4));
+	assert(duplicate.result == agent_safety::RESULT_DUPLICATE);
+	assert(!duplicate.flight_attempted);
+}
+
+static void testGuardedPipelineFailsClosedForUnavailableSensors() {
+	flight_command_pipeline::Pipeline pipeline;
+	const uint64_t now = 100;
+	agent_safety::Snapshot safety_snapshot = {};
+	safety_snapshot.throttle_low = true;
+	safety_snapshot.battery_ok = true;
+	safety_snapshot.attitude_ok = true;
+	safety_snapshot.landed = true;
+	TelemetryAggregator telemetry;
+	const HealthySnapshot unavailable = telemetry.snapshot(now);
+	Request request = decode(100, 3, 0.5f, 0.0f, 0.0f, SKILL_TAKEOFF);
+
+	assert(pipeline.handle(now, agent_safety::SKILL_HEARTBEAT, 1,
+	                       kConfirmationCode, true, Request(), safety_snapshot,
+	                       vehicle(now, 0, 0, 0, 0, true), unavailable).result ==
+	       agent_safety::RESULT_ACCEPTED);
+	assert(pipeline.handle(now + 1, agent_safety::SKILL_ARM, 2,
+	                       kConfirmationCode, true, Request(), safety_snapshot,
+	                       vehicle(now + 1, 0, 0, 0, 0, true), unavailable).result ==
+	       agent_safety::RESULT_ACCEPTED);
+	safety_snapshot.armed = true;
+	flight_command_pipeline::Outcome rejected = pipeline.handle(
+		now + 2, agent_safety::SKILL_TAKEOFF, request.request_id,
+		kConfirmationCode, true, request, safety_snapshot, vehicle(now + 2),
+		unavailable);
+	assert(rejected.result == agent_safety::RESULT_FLIGHT_REJECTED);
+	assert(rejected.flight_result == RESULT_SENSOR_UNHEALTHY);
+	assert(pipeline.machine().fault() == FAULT_RANGE_LOSS);
+}
+
+static void testGuardedPipelineBlocksUnsafeRequests() {
+	struct Case {
+		bool valid_arguments;
+		uint64_t command_time_ms;
+		void (*change)(agent_safety::Snapshot&);
+		agent_safety::Result expected;
+	};
+	const uint64_t now = 100;
+	const Case cases[] = {
+		{false, now + 3, 0, agent_safety::RESULT_INVALID_REQUEST},
+		{true, now + agent_safety::kHeartbeatTimeoutMs + 2, 0,
+		 agent_safety::RESULT_HEARTBEAT_STALE},
+	};
+	for (unsigned int i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+		flight_command_pipeline::Pipeline pipeline;
+		agent_safety::Snapshot snapshot = {};
+		snapshot.throttle_low = true;
+		snapshot.battery_ok = true;
+		snapshot.attitude_ok = true;
+		snapshot.landed = true;
+		assert(pipeline.handle(now, agent_safety::SKILL_HEARTBEAT, 1,
+		                       kConfirmationCode, true, Request(), snapshot,
+		                       vehicle(now, 0, 0, 0, 0, true), sensors(now)).result ==
+		       agent_safety::RESULT_ACCEPTED);
+		assert(pipeline.handle(now + 1, agent_safety::SKILL_ARM, 2,
+		                       kConfirmationCode, true, Request(), snapshot,
+		                       vehicle(now + 1, 0, 0, 0, 0, true), sensors(now + 1)).result ==
+		       agent_safety::RESULT_ACCEPTED);
+		snapshot.armed = true;
+		const Request request = decode(100, 3, 0.5f, 0.0f, 0.0f, SKILL_TAKEOFF);
+		const flight_command_pipeline::Outcome blocked = pipeline.handle(
+			cases[i].command_time_ms, agent_safety::SKILL_TAKEOFF,
+			request.request_id, kConfirmationCode, cases[i].valid_arguments,
+			request, snapshot, vehicle(cases[i].command_time_ms),
+			sensors(cases[i].command_time_ms));
+		assert(blocked.result == cases[i].expected);
+		assert(!blocked.flight_attempted);
+		assert(pipeline.machine().activeSkill() == SKILL_NONE);
+	}
+
+	struct Hazard {
+		void (*change)(agent_safety::Snapshot&);
+		agent_safety::Result expected;
+	};
+	const Hazard hazards[] = {
+		{[](agent_safety::Snapshot& s) { s.manual_control_active = true; },
+		 agent_safety::RESULT_MANUAL_CONTROL_ACTIVE},
+		{[](agent_safety::Snapshot& s) { s.battery_ok = false; },
+		 agent_safety::RESULT_BATTERY_UNSAFE},
+		{[](agent_safety::Snapshot& s) { s.inverted = true; },
+		 agent_safety::RESULT_INVERTED},
+		{[](agent_safety::Snapshot& s) { s.attitude_ok = false; },
+		 agent_safety::RESULT_ATTITUDE_INVALID},
+	};
+	for (unsigned int i = 0; i < sizeof(hazards) / sizeof(hazards[0]); ++i) {
+		flight_command_pipeline::Pipeline pipeline;
+		agent_safety::Snapshot snapshot = {};
+		snapshot.throttle_low = true;
+		snapshot.battery_ok = true;
+		snapshot.attitude_ok = true;
+		snapshot.landed = true;
+		assert(pipeline.handle(now, agent_safety::SKILL_HEARTBEAT, 1,
+		                       kConfirmationCode, true, Request(), snapshot,
+		                       vehicle(now, 0, 0, 0, 0, true), sensors(now)).result ==
+		       agent_safety::RESULT_ACCEPTED);
+		assert(pipeline.handle(now + 1, agent_safety::SKILL_ARM, 2,
+		                       kConfirmationCode, true, Request(), snapshot,
+		                       vehicle(now + 1, 0, 0, 0, 0, true), sensors(now + 1)).result ==
+		       agent_safety::RESULT_ACCEPTED);
+		snapshot.armed = true;
+		hazards[i].change(snapshot);
+		const Request request = decode(100, 3, 0.5f, 0.0f, 0.0f, SKILL_TAKEOFF);
+		const flight_command_pipeline::Outcome blocked = pipeline.handle(
+			now + 2, agent_safety::SKILL_TAKEOFF, request.request_id,
+			kConfirmationCode, true, request, snapshot, vehicle(now + 2),
+			sensors(now + 2));
+		assert(blocked.result == hazards[i].expected);
+		assert(!blocked.flight_attempted);
+		assert(pipeline.machine().activeSkill() == SKILL_NONE);
+		assert(pipeline.gate().fault() != agent_safety::FAULT_NONE);
+	}
+}
+
 int main() {
 	testV1CommandsReachFlightMachine();
 	testInvalidV1CommandDoesNotStartMachine();
+	testGuardedPipelineNeedsBothAcceptances();
+	testGuardedPipelineFailsClosedForUnavailableSensors();
+	testGuardedPipelineBlocksUnsafeRequests();
 	puts("flight command v1 pipeline tests: PASS");
 }

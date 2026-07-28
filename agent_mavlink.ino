@@ -10,7 +10,8 @@ extern int mavlinkSysId;
 
 agent_safety::Result handleAgentSafetyCommand(
 	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,
-	uint32_t confirmation_code, bool arguments_valid);
+	uint32_t confirmation_code, bool arguments_valid,
+	const flight_skills::Request& request);
 agent_safety::Result rejectAgentSafetyMessage();
 
 static bool exactUnsigned(float value, uint32_t maximum, uint32_t& output) {
@@ -36,6 +37,7 @@ static uint8_t agentMavlinkResult(agent_safety::Result result) {
 		case agent_safety::RESULT_HEARTBEAT_STALE:
 		case agent_safety::RESULT_MANUAL_CONTROL_ACTIVE:
 		case agent_safety::RESULT_NOT_LANDED:
+		case agent_safety::RESULT_AGENT_NOT_ARMED:
 			return MAV_RESULT_TEMPORARILY_REJECTED;
 		default:
 			return MAV_RESULT_DENIED;
@@ -92,7 +94,7 @@ bool routeAgentMavlink(const void* raw_message) {
 
 	agent_safety::Result result = handleAgentSafetyCommand(
 		millis(), static_cast<agent_safety::Skill>(skill_value), request_id,
-		confirmation_code, arguments_valid);
+		confirmation_code, arguments_valid, decoded_request);
 	sendAgentAck(message, command.command, result);
 	return true;
 }
