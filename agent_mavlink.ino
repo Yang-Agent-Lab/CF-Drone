@@ -101,16 +101,18 @@ bool routeAgentMavlink(const void* raw_message) {
 
 	uint32_t skill_value = 0;
 	uint32_t confirmation_code = 0;
-	bool valid = exactUnsigned(command.param1, UINT16_MAX, skill_value) &&
-	             request_id_valid &&
-	             exactUnsigned(command.param3, 16777215UL, confirmation_code);
+	const bool header_arguments_valid =
+		exactUnsigned(command.param1, UINT16_MAX, skill_value) &&
+		request_id_valid &&
+		exactUnsigned(command.param3, 16777215UL, confirmation_code);
 	flight_skills::Request decoded_request = {};
-	const bool arguments_valid = flight_command_v1::isHighLevelSkill(skill_value)
-		? flight_command_v1::decode(skill_value, request_id, command.param4,
-		                          command.param5, command.param6, command.param7,
-		                          decoded_request)
-		: command.param4 == 0.0f && command.param5 == 0.0f &&
-		  command.param6 == 0.0f && command.param7 == 0.0f;
+	const bool arguments_valid = header_arguments_valid &&
+		(flight_command_v1::isHighLevelSkill(skill_value)
+			? flight_command_v1::decode(skill_value, request_id, command.param4,
+			                          command.param5, command.param6, command.param7,
+			                          decoded_request)
+			: command.param4 == 0.0f && command.param5 == 0.0f &&
+			  command.param6 == 0.0f && command.param7 == 0.0f);
 	agent_safety::Result result = handleAgentSafetyCommand(
 		millis(), static_cast<agent_safety::Skill>(skill_value), request_id,
 		confirmation_code, arguments_valid, decoded_request);
