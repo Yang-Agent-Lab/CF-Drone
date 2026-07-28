@@ -10,6 +10,8 @@ static const uint32_t kCommandLongMessageId = 76;
 static const uint16_t kPrivateCommand = 31010;
 static const uint32_t kConfirmationCode = 7319;
 static const uint32_t kHeartbeatTimeoutMs = 1000;
+static const uint32_t kAckRequestIdMax = 16777215UL;
+static const uint8_t kAckResultShift = 24;
 
 enum Skill : uint16_t {
 	SKILL_HEARTBEAT = 1,
@@ -79,6 +81,7 @@ struct Decision {
 };
 
 bool isAgentMessageAllowed(uint32_t message_id, uint16_t command);
+int32_t encodeAckResultParam2(uint32_t request_id, Result result);
 
 class Gate {
 public:

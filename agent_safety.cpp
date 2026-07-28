@@ -2,6 +2,9 @@
 
 namespace agent_safety {
 
+static_assert(RESULT_FLIGHT_REJECTED < 128,
+	"ACK result must fit in its seven-bit field");
+
 namespace {
 
 Decision decision(Result result, bool arm = false, bool disarm = false) {
@@ -36,6 +39,12 @@ bool flightSkill(Skill skill) {
 
 bool isAgentMessageAllowed(uint32_t message_id, uint16_t command) {
 	return message_id == kCommandLongMessageId && command == kPrivateCommand;
+}
+
+int32_t encodeAckResultParam2(uint32_t request_id, Result result) {
+	if (request_id > kAckRequestIdMax) request_id = 0;
+	return static_cast<int32_t>(
+		request_id | (static_cast<uint32_t>(result) << kAckResultShift));
 }
 
 Gate::Gate()

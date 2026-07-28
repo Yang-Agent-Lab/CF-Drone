@@ -62,11 +62,12 @@ static uint8_t agentMavlinkResult(agent_safety::Result result) {
 }
 
 static void sendAgentAck(const mavlink_message_t& request, uint16_t command,
-	                     agent_safety::Result result) {
+	                     uint32_t request_id, agent_safety::Result result) {
 	mavlink_message_t ack;
 	mavlink_msg_command_ack_pack(
 		mavlinkSysId, MAV_COMP_ID_AUTOPILOT1, &ack, command,
-		agentMavlinkResult(result), UINT8_MAX, static_cast<int32_t>(result),
+		agentMavlinkResult(result), UINT8_MAX,
+		agent_safety::encodeAckResultParam2(request_id, result),
 		request.sysid, request.compid);
 	sendMessage(&ack);
 }
@@ -86,19 +87,22 @@ bool routeAgentMavlink(const void* raw_message) {
 
 	mavlink_command_long_t command;
 	mavlink_msg_command_long_decode(&message, &command);
+	uint32_t request_id = 0;
+	const bool request_id_valid = exactUnsigned(
+		command.param2, agent_safety::kAckRequestIdMax, request_id);
+	if (!request_id_valid) request_id = 0;
 	if (command.target_system != mavlinkSysId ||
 	    command.target_component != MAV_COMP_ID_AUTOPILOT1 ||
 	    !agent_safety::isAgentMessageAllowed(message.msgid, command.command)) {
 		agent_safety::Result result = rejectAgentSafetyMessage();
-		sendAgentAck(message, command.command, result);
+		sendAgentAck(message, command.command, request_id, result);
 		return true;
 	}
 
 	uint32_t skill_value = 0;
-	uint32_t request_id = 0;
 	uint32_t confirmation_code = 0;
 	bool valid = exactUnsigned(command.param1, UINT16_MAX, skill_value) &&
-	             exactUnsigned(command.param2, 16777215UL, request_id) &&
+	             request_id_valid &&
 	             exactUnsigned(command.param3, 16777215UL, confirmation_code);
 	flight_skills::Request decoded_request = {};
 	const bool arguments_valid = flight_command_v1::isHighLevelSkill(skill_value)
@@ -107,12 +111,10 @@ bool routeAgentMavlink(const void* raw_message) {
 		                          decoded_request)
 		: command.param4 == 0.0f && command.param5 == 0.0f &&
 		  command.param6 == 0.0f && command.param7 == 0.0f;
-	if (!valid) request_id = 0;
-
 	agent_safety::Result result = handleAgentSafetyCommand(
 		millis(), static_cast<agent_safety::Skill>(skill_value), request_id,
 		confirmation_code, arguments_valid, decoded_request);
-	sendAgentAck(message, command.command, result);
+	sendAgentAck(message, command.command, request_id, result);
 	return true;
 }
 

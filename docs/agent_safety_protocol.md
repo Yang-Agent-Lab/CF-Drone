@@ -65,7 +65,7 @@ Agent 会话中发生心跳超时、人工遥控介入、低电、倒置、姿�
 
 来自固定 Agent 来源的 `MANUAL_CONTROL`、`PARAM_SET`、`SERIAL_CONTROL`、`SET_ATTITUDE_TARGET`、`SET_ACTUATOR_CONTROL_TARGET`，以及通用解锁、改模式命令，全部在旧处理分支之前拒绝。来自其他来源的原有人工遥控处理保持不变。
 
-飞控使用 `COMMAND_ACK.result` 返回 MAVLink 标准结果，并在 `COMMAND_ACK.result_param2` 返回结果编号。0 表示接受，1 表示重复请求，20 到 28 表示当前安全条件不满足，30 到 33 表示已锁存或协议违法，34 表示状态机未接受该技能。
+飞控使用 `COMMAND_ACK.result` 返回 MAVLink 标准结果，`progress` 固定为 `UINT8_MAX`。`COMMAND_ACK.result_param2` 是固定的非负 v1 元数据：低 24 位为原始请求编号（0 到 16777215），第 24 到 30 位为安全门结果编号，最高位始终为 0。结果编号中，0 表示接受，1 表示重复请求，20 到 28 表示当前安全条件不满足，30 到 33 表示已锁存或协议违法，34 表示状态机未接受该技能。只要请求编号本身能精确解析，即使目标、技能、确认码或其他参数无效，ACK 也会原样回传它；只有请求编号无法精确解析时才回传 0。Mac 必须同时匹配命令和这个请求编号，不能把延迟或重复的旧 ACK 当作下一条请求的结果。
 
 ## 动作状态回传（AGT_STAT v1）
 

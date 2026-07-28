@@ -31,6 +31,22 @@ static void armSession(Gate& gate, uint32_t now_ms = 200, uint32_t request_id = 
 	assert(gate.state() == STATE_AGENT_ARMED);
 }
 
+static void testAckResultParam2() {
+	const uint32_t accepted = static_cast<uint32_t>(
+		encodeAckResultParam2(42, RESULT_ACCEPTED));
+	assert(accepted == 42);
+
+	const uint32_t rejected = static_cast<uint32_t>(
+		encodeAckResultParam2(42, RESULT_INVALID_REQUEST));
+	assert(rejected == (static_cast<uint32_t>(RESULT_INVALID_REQUEST) <<
+	                    kAckResultShift) + 42);
+
+	const uint32_t maximum_request = static_cast<uint32_t>(
+		encodeAckResultParam2(kAckRequestIdMax, RESULT_FLIGHT_REJECTED));
+	assert((maximum_request & kAckRequestIdMax) == kAckRequestIdMax);
+	assert((maximum_request & 0x80000000UL) == 0);
+}
+
 static void testLegalSessionAndDuplicate() {
 	Gate gate;
 	startSession(gate);
@@ -253,6 +269,7 @@ static void testEmergencyStopPriority() {
 }
 
 int main() {
+	testAckResultParam2();
 	testLegalSessionAndDuplicate();
 	testArmPreconditions();
 	testHeartbeatTimeout();
