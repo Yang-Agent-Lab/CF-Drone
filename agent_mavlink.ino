@@ -4,9 +4,26 @@
 
 #include <MAVLink.h>
 #include "agent_safety.h"
+#include "agent_status.h"
 #include "flight_command_v1.h"
+#include "util.h"
 
 extern int mavlinkSysId;
+agent_status::Snapshot agentStatusSnapshot();
+
+static Rate agentStatusRate(10);
+static const char kAgentStatusName[] = "AGT_STAT";
+
+static void sendAgentStatus() {
+	if (!agentStatusRate) return;
+	int32_t value = 0;
+	if (!agent_status::encode(agentStatusSnapshot(), value)) return;
+	mavlink_message_t status;
+	mavlink_msg_named_value_int_pack(
+		mavlinkSysId, MAV_COMP_ID_AUTOPILOT1, &status, millis(),
+		kAgentStatusName, value);
+	sendMessage(&status);
+}
 
 agent_safety::Result handleAgentSafetyCommand(
 	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,

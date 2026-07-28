@@ -2,9 +2,9 @@
 set -eu
 
 case "${1:-}" in
-	safety|sensors|control|command|pipeline) ;;
+	safety|sensors|control|command|pipeline|status) ;;
 	*)
-		echo "usage: $0 {safety|sensors|control|command|pipeline}" >&2
+		echo "usage: $0 {safety|sensors|control|command|pipeline|status}" >&2
 	exit 2
 		;;
 esac
@@ -67,6 +67,39 @@ if [ "$1" = "pipeline" ]; then
 		flight_command_v1.cpp flight_command_pipeline.cpp \
 		tests/test_flight_command_pipeline.cpp -o "$tmp_dir/test_flight_command_pipeline"
 	"$tmp_dir/test_flight_command_pipeline"
+	exit 0
+fi
+
+if [ "$1" = "status" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		agent_status.cpp tests/test_agent_status.cpp \
+		-o "$tmp_dir/test_agent_status"
+	"$tmp_dir/test_agent_status"
+
+	grep -q 'mavlink_msg_named_value_int_pack' agent_mavlink.ino || {
+		echo "Agent状态没有使用MAVLink common NAMED_VALUE_INT" >&2
+		exit 1
+	}
+	grep -q '"AGT_STAT"' agent_mavlink.ino || {
+		echo "Agent状态名称不是固定AGT_STAT" >&2
+		exit 1
+	}
+	grep -q 'Rate agentStatusRate(10)' agent_mavlink.ino || {
+		echo "Agent状态发布频率没有限制为10Hz" >&2
+		exit 1
+	}
+	grep -q 'sendAgentStatus();' mavlink.ino || {
+		echo "MAVLink发送入口没有发布Agent状态" >&2
+		exit 1
+	}
+	if grep -En \
+		'(motors|attitudeTarget|ratesTarget|torqueTarget|thrustTarget|PID)' \
+		agent_status.h agent_status.cpp >/dev/null; then
+		echo "Agent状态编解码器包含控制或硬件符号" >&2
+		exit 1
+	fi
+
+	echo "agent status protocol checks: PASS"
 	exit 0
 fi
 

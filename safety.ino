@@ -2,6 +2,7 @@
 // Fail-safe functions
 
 #include "agent_safety.h"
+#include "agent_status.h"
 #include "flight_command_pipeline.h"
 
 bool isInverted = false;  // 当前机身是否处于倒置（Z轴cos < INVERTED_COS_THRESHOLD）
@@ -60,6 +61,26 @@ agent_safety::Snapshot agentSafetySnapshot() {
 	snapshot.manual_control_active =
 		controlTime > 0 && t - controlTime <= rcLossTimeout;
 	return snapshot;
+}
+
+agent_status::Snapshot agentStatusSnapshot() {
+	const agent_safety::Snapshot safety = agentSafetySnapshot();
+	const flight_skills::Target target = agentFlightPipeline.lastTarget();
+	agent_status::Snapshot status = {};
+	status.schema_version = agent_status::kSchemaVersion;
+	status.mission_state = agentFlightPipeline.machine().missionState();
+	status.active_skill = agentFlightPipeline.machine().activeSkill();
+	status.completed_skill = agentFlightPipeline.machine().completedSkill();
+	status.flight_fault = agentFlightPipeline.machine().fault();
+	status.last_target_action = target.action;
+	status.agent_fault = agentFlightPipeline.gate().fault();
+	status.gate_state = agentFlightPipeline.gate().state();
+	status.agent_owns_arm = agentFlightPipeline.gate().agentOwnsArm();
+	status.armed = safety.armed;
+	status.manual_control_active = safety.manual_control_active;
+	status.heartbeat_fresh = agentFlightPipeline.gate().heartbeatFresh(millis());
+	status.landed = safety.landed;
+	return status;
 }
 
 void applyAgentSafetyDecision(const agent_safety::Decision& decision) {

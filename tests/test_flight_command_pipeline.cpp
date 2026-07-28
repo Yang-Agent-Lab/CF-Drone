@@ -72,14 +72,17 @@ static void testV1CommandsReachFlightMachine() {
 	now = 200;
 	assert(!machine.update(now, sensors(now), vehicle(now, 0, 0, 0.5f),
 	                       safeStatus()).valid);
+	assert(machine.completedSkill() == SKILL_TAKEOFF);
 
 	Request hold = decode(102, 2, 0.125f, 0.0f, 0.0f, SKILL_HOLD);
 	assert(hold.duration_ms == 125);
 	assert(machine.start(now, hold, sensors(now), vehicle(now, 0, 0, 0.5f),
 	                     safeStatus()) == RESULT_ACCEPTED);
+	assert(machine.completedSkill() == SKILL_NONE);
 	now += hold.duration_ms;
 	assert(!machine.update(now, sensors(now), vehicle(now, 0, 0, 0.5f),
 	                       safeStatus()).valid);
+	assert(machine.completedSkill() == SKILL_HOLD);
 
 	Request move = decode(103, 3, 0.3f, 0.4f, kMaxHorizontalSpeedMps,
 	                      SKILL_MOVE_BODY);

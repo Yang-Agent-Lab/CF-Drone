@@ -6,6 +6,7 @@
 #include "quaternion.h"
 #include "util.h"
 #include "agent_safety.h"
+#include "agent_status.h"
 #include "board_config.h"
 #include "flight_command_pipeline.h"
 

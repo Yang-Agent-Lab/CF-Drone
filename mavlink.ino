@@ -25,6 +25,7 @@ void processMavlink() {
 
 void sendMavlink() {
 	sendMavlinkPrint();
+	sendAgentStatus();
 
 	mavlink_message_t msg;
 	uint32_t time = t * 1000;
