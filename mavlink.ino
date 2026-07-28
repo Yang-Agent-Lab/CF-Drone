@@ -25,6 +25,7 @@ void processMavlink() {
 
 void sendMavlink() {
 	sendMavlinkPrint();
+	sendAgentStatus();
 
 	mavlink_message_t msg;
 	uint32_t time = t * 1000;
@@ -89,6 +90,8 @@ void receiveMavlink() {
 }
 
 void handleMavlink(const void *_msg) {
+	if (routeAgentMavlink(_msg)) return;
+
 	const mavlink_message_t& msg = *(mavlink_message_t *)_msg;
 
 	if (msg.msgid == MAVLINK_MSG_ID_MANUAL_CONTROL) {

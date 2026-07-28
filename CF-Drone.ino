@@ -5,12 +5,19 @@
 #include "vector.h"
 #include "quaternion.h"
 #include "util.h"
+#include "agent_safety.h"
+#include "agent_status.h"
 #include "board_config.h"
+#include "flight_command_pipeline.h"
 
 // WiFi 和 Web 遥控器开关由 board_config.h 按芯片自动设置：
 // 如需手动覆盖，在此处 #undef 后重新 #define
 #define WIFI_ENABLED    BOARD_WIFI_ENABLED
 #define WEB_RC_ENABLED  BOARD_WEB_RC_ENABLED
+
+#if WIFI_ENABLED
+#include <MAVLink.h>
+#endif
 
 float t = NAN; // 当前步进时间，单位：秒
 float dt; // 与上一步进的时间差，单位：秒

@@ -88,7 +88,7 @@
 #define BOARD_LED_INVERTED 0
 
 // ---- 性能与资源配置（S3 标准）----
-#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数 
+#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数
 #define BOARD_LOG_DURATION           8  // 日志缓冲秒数
 #define BOARD_CONSOLE_LINES          50  // 控制台行数
 #define BOARD_CONSOLE_LINE_LEN       240  // 每行字符数
@@ -127,7 +127,7 @@
 #define BOARD_LED_INVERTED 0               // 高电平点亮
 
 // ---- 性能与资源配置（ESP32 标准）----
-#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数 
+#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数
 #define BOARD_LOG_DURATION           8  // 日志缓冲秒数
 #define BOARD_CONSOLE_LINES          50  // 控制台行数
 #define BOARD_CONSOLE_LINE_LEN       240  // 每行字符数
