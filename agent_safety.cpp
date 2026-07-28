@@ -62,7 +62,7 @@ Decision Gate::latch(Fault fault, Result result) {
 }
 
 Decision Gate::handle(uint32_t now_ms, Skill skill, uint32_t request_id,
-                      uint32_t confirmation_code, bool arguments_zero,
+                      uint32_t confirmation_code, bool arguments_valid,
                       const Snapshot& snapshot) {
 	// Emergency stop is deliberately honored even when the session is stale or
 	// malformed. Stopping cannot grant the Agent additional authority.
@@ -77,7 +77,7 @@ Decision Gate::handle(uint32_t now_ms, Skill skill, uint32_t request_id,
 	}
 
 	if (request_id == 0 || confirmation_code != kConfirmationCode ||
-	    !arguments_zero) {
+	    !arguments_valid) {
 		return latch(FAULT_ILLEGAL_COMMAND, RESULT_INVALID_REQUEST);
 	}
 

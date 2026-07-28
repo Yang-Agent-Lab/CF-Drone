@@ -4,12 +4,13 @@
 
 #include <MAVLink.h>
 #include "agent_safety.h"
+#include "flight_command_v1.h"
 
 extern int mavlinkSysId;
 
 agent_safety::Result handleAgentSafetyCommand(
 	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,
-	uint32_t confirmation_code, bool arguments_zero);
+	uint32_t confirmation_code, bool arguments_valid);
 agent_safety::Result rejectAgentSafetyMessage();
 
 static bool exactUnsigned(float value, uint32_t maximum, uint32_t& output) {
@@ -80,13 +81,18 @@ bool routeAgentMavlink(const void* raw_message) {
 	bool valid = exactUnsigned(command.param1, UINT16_MAX, skill_value) &&
 	             exactUnsigned(command.param2, 16777215UL, request_id) &&
 	             exactUnsigned(command.param3, 16777215UL, confirmation_code);
-	bool arguments_zero = command.param4 == 0.0f && command.param5 == 0.0f &&
-	                      command.param6 == 0.0f && command.param7 == 0.0f;
+	flight_skills::Request decoded_request = {};
+	const bool arguments_valid = flight_command_v1::isHighLevelSkill(skill_value)
+		? flight_command_v1::decode(skill_value, request_id, command.param4,
+		                          command.param5, command.param6, command.param7,
+		                          decoded_request)
+		: command.param4 == 0.0f && command.param5 == 0.0f &&
+		  command.param6 == 0.0f && command.param7 == 0.0f;
 	if (!valid) request_id = 0;
 
 	agent_safety::Result result = handleAgentSafetyCommand(
 		millis(), static_cast<agent_safety::Skill>(skill_value), request_id,
-		confirmation_code, arguments_zero);
+		confirmation_code, arguments_valid);
 	sendAgentAck(message, command.command, result);
 	return true;
 }

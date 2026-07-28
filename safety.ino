@@ -70,9 +70,9 @@ void applyAgentSafetyDecision(const agent_safety::Decision& decision) {
 
 agent_safety::Result handleAgentSafetyCommand(
 	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,
-	uint32_t confirmation_code, bool arguments_zero) {
+	uint32_t confirmation_code, bool arguments_valid) {
 	agent_safety::Decision decision = agentSafetyGate.handle(
-		now_ms, skill, request_id, confirmation_code, arguments_zero,
+		now_ms, skill, request_id, confirmation_code, arguments_valid,
 		agentSafetySnapshot());
 	applyAgentSafetyDecision(decision);
 	return decision.result;
