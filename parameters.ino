@@ -184,7 +184,7 @@ Parameter parameters[] = {
 
 	#if WIFI_ENABLED
 	// ===== WiFi =====
-	{"WIFI_MODE",     &wifiMode},      // WiFi 工作模式：0=关闭，1=STA（连接已有热点），2=AP（自建热点）
+	{"WIFI_MODE",     &wifiMode},      // WiFi 工作模式：0=关闭，1=AP（自建热点），2=STA（连接已有热点）
 	{"WIFI_LOC_PORT", &udpLocalPort},  // 本地 UDP 监听端口（地面站发送到此端口）
 	{"WIFI_REM_PORT", &udpRemotePort}, // 远端 UDP 目标端口（飞控主动发送到此端口）
 

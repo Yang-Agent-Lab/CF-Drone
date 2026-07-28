@@ -16,6 +16,15 @@ int udpRemotePort = 14550;
 IPAddress udpRemoteIP = "255.255.255.255";
 
 WiFiUDP udp;
+bool udpReady = false;
+
+bool ensureUdpReady() {
+	if (udpReady) return true;
+	if (wifiMode == W_DISABLED) return false;
+	if (wifiMode == W_STA && !WiFi.isConnected()) return false;
+	udpReady = udp.begin(udpLocalPort) != 0;
+	return udpReady;
+}
 
 void setupWiFi() {
 	print("Setup Wi-Fi\n");
@@ -31,17 +40,19 @@ void setupWiFi() {
 			storage.getString("WIFI_STA_PASS", "").c_str()
 		);
 	}
-	udp.begin(udpLocalPort);
+	ensureUdpReady();
 }
 
 void sendWiFi(const uint8_t *buf, int len) {
 	if (WiFi.softAPgetStationNum() == 0 && !WiFi.isConnected()) return;
+	if (!ensureUdpReady()) return;
 	udp.beginPacket(udpRemoteIP, udpRemotePort);
 	udp.write(buf, len);
 	udp.endPacket();
 }
 
 int receiveWiFi(uint8_t *buf, int len) {
+	if (!ensureUdpReady()) return 0;
 	udp.parsePacket();
 	if (udp.remoteIP()) udpRemoteIP = udp.remoteIP();
 	return udp.read(buf, len);
