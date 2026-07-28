@@ -149,6 +149,17 @@ Decision Gate::handle(uint32_t now_ms, Skill skill, uint32_t request_id,
 	return decision(RESULT_ACCEPTED, true, false);
 }
 
+void Gate::abortArm(uint32_t now_ms, uint32_t request_id) {
+	if (state_ != STATE_AGENT_ARMED || !agent_owns_arm_) return;
+
+	state_ = heartbeatFresh(now_ms) ? STATE_READY : STATE_IDLE;
+	agent_owns_arm_ = false;
+	if (last_execution_valid_ && last_execution_request_ == request_id &&
+	    last_execution_skill_ == SKILL_ARM) {
+		last_execution_valid_ = false;
+	}
+}
+
 void Gate::commitFlightSkill(uint32_t request_id, Skill skill) {
 	last_execution_valid_ = true;
 	last_execution_request_ = request_id;

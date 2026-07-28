@@ -94,6 +94,7 @@ public:
 	Fault fault() const { return fault_; }
 	bool agentOwnsArm() const { return agent_owns_arm_; }
 	bool heartbeatFresh(uint32_t now_ms) const;
+	void abortArm(uint32_t now_ms, uint32_t request_id);
 	void commitFlightSkill(uint32_t request_id, Skill skill);
 
 private:

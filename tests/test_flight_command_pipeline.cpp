@@ -184,6 +184,8 @@ static void testGuardedPipelineNeedsBothAcceptances() {
 		sensors(now + 2));
 	assert(arm.result == agent_safety::RESULT_ACCEPTED);
 	assert(arm.safety.arm);
+	assert(pipeline.gate().state() == agent_safety::STATE_AGENT_ARMED);
+	assert(pipeline.gate().agentOwnsArm());
 	agent_safety::Snapshot active_snapshot = safety_snapshot;
 	active_snapshot.armed = true;
 
@@ -201,6 +203,40 @@ static void testGuardedPipelineNeedsBothAcceptances() {
 		vehicle(now + 4), sensors(now + 4));
 	assert(duplicate.result == agent_safety::RESULT_DUPLICATE);
 	assert(!duplicate.flight_attempted);
+}
+
+static void testArmRollsBackWhenFlightMachineRejects() {
+	flight_command_pipeline::Pipeline pipeline;
+	const uint64_t now = 100;
+	agent_safety::Snapshot snapshot = {};
+	snapshot.throttle_low = true;
+	snapshot.battery_ok = true;
+	snapshot.attitude_ok = true;
+	snapshot.landed = true;
+	TelemetryAggregator telemetry;
+	const HealthySnapshot unavailable = telemetry.snapshot(now);
+	VehicleState unavailable_vehicle = {};
+	unavailable_vehicle.timestamp_ms = now + 1;
+
+	assert(pipeline.handle(now, agent_safety::SKILL_HEARTBEAT, 1,
+	                       kConfirmationCode, true, Request(), snapshot,
+	                       unavailable_vehicle, unavailable).result ==
+	       agent_safety::RESULT_ACCEPTED);
+	const flight_command_pipeline::Outcome rejected = pipeline.handle(
+		now + 1, agent_safety::SKILL_ARM, 2, kConfirmationCode, true,
+		Request(), snapshot, unavailable_vehicle, unavailable);
+	assert(rejected.result == agent_safety::RESULT_FLIGHT_REJECTED);
+	assert(!rejected.safety.arm);
+	assert(pipeline.gate().state() != agent_safety::STATE_AGENT_ARMED);
+	assert(!pipeline.gate().agentOwnsArm());
+	assert(pipeline.machine().missionState() != MISSION_ACTIVE);
+
+	const flight_command_pipeline::Outcome retry = pipeline.handle(
+		now + 2, agent_safety::SKILL_ARM, 2, kConfirmationCode, true,
+		Request(), snapshot, unavailable_vehicle, unavailable);
+	assert(retry.result == agent_safety::RESULT_FLIGHT_REJECTED);
+	assert(retry.result != agent_safety::RESULT_DUPLICATE);
+	assert(!retry.safety.arm);
 }
 
 static void testGuardedPipelineFailsClosedForUnavailableSensors() {
@@ -320,6 +356,7 @@ int main() {
 	testV1CommandsReachFlightMachine();
 	testInvalidV1CommandDoesNotStartMachine();
 	testGuardedPipelineNeedsBothAcceptances();
+	testArmRollsBackWhenFlightMachineRejects();
 	testGuardedPipelineFailsClosedForUnavailableSensors();
 	testGuardedPipelineBlocksUnsafeRequests();
 	puts("flight command v1 pipeline tests: PASS");

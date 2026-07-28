@@ -51,6 +51,10 @@ Outcome Pipeline::handle(
 	if (skill == agent_safety::SKILL_ARM && safety.arm) {
 		const flight_skills::Result flight =
 			machine_.beginAtArm(now_ms, vehicle, status);
+		if (flight != flight_skills::RESULT_ACCEPTED) {
+			gate_.abortArm(gate_now_ms, request_id);
+			safety = {agent_safety::RESULT_FLIGHT_REJECTED, false, false};
+		}
 		return outcome(safety, flight, false);
 	}
 	if (!flightSkill(skill)) {
