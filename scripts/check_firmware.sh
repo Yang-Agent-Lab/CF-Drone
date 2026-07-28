@@ -1,19 +1,30 @@
 #!/bin/sh
 set -eu
 
-if [ "${1:-}" != "safety" ]; then
-	echo "usage: $0 safety" >&2
+case "${1:-}" in
+	safety|sensors) ;;
+	*)
+		echo "usage: $0 {safety|sensors}" >&2
 	exit 2
-fi
+		;;
+esac
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/cf-drone-safety.XXXXXX")
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/cf-drone-check.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
 cd "$repo_dir"
+
+if [ "$1" = "sensors" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		sensor_telemetry.cpp tests/test_sensor_telemetry.cpp \
+		-o "$tmp_dir/test_sensor_telemetry"
+	"$tmp_dir/test_sensor_telemetry"
+	exit 0
+fi
+
 "${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
-	agent_safety.cpp tests/test_agent_safety.cpp \
-	-o "$tmp_dir/test_agent_safety"
+	agent_safety.cpp tests/test_agent_safety.cpp -o "$tmp_dir/test_agent_safety"
 "$tmp_dir/test_agent_safety"
 
 if grep -En \
