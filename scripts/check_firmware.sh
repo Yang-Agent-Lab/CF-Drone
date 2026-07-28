@@ -2,9 +2,9 @@
 set -eu
 
 case "${1:-}" in
-	safety|sensors|control) ;;
+	safety|sensors|control|command) ;;
 	*)
-		echo "usage: $0 {safety|sensors|control}" >&2
+		echo "usage: $0 {safety|sensors|control|command}" >&2
 	exit 2
 		;;
 esac
@@ -37,6 +37,27 @@ if [ "$1" = "control" ]; then
 	fi
 
 	echo "flight skill software-only boundary checks: PASS"
+	exit 0
+fi
+
+if [ "$1" = "command" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		flight_command_v1.cpp tests/test_flight_command_v1.cpp \
+		-o "$tmp_dir/test_flight_command_v1"
+	"$tmp_dir/test_flight_command_v1"
+
+	grep -q 'flight_command_v1::isHighLevelSkill' agent_mavlink.ino || {
+		echo "Agent入口没有区分高层技能参数" >&2
+		exit 1
+	}
+	grep -q 'flight_command_v1::decode' agent_mavlink.ino || {
+		echo "Agent入口没有调用v1解码器" >&2
+		exit 1
+	}
+	if grep -En 'flight_skills::Machine' agent_mavlink.ino safety.ino >/dev/null; then
+		echo "v1解码入口不得启动飞行技能状态机" >&2
+		exit 1
+	fi
 	exit 0
 fi
 

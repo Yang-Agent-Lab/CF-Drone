@@ -83,7 +83,7 @@ public:
 	Gate();
 
 	Decision handle(uint32_t now_ms, Skill skill, uint32_t request_id,
-	                uint32_t confirmation_code, bool arguments_zero,
+	                uint32_t confirmation_code, bool arguments_valid,
 	                const Snapshot& snapshot);
 	Decision update(uint32_t now_ms, const Snapshot& snapshot);
 	Decision rejectIllegalMessage();
