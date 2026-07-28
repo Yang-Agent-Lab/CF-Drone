@@ -2,6 +2,7 @@
 // Parameters storage in flash memory
 
 #include <Preferences.h>
+#include <nvs_flash.h> // nvs_flash_init()/nvs_flash_erase()：当 Preferences.begin() 失败时用于擦除重建 NVS
 #include "util.h"
 
 extern float channelZero[16];
@@ -171,10 +172,11 @@ Parameter parameters[] = {
 	{"RC_MODE",     &modeChannel},     // 飞行模式切换通道编号（三挡拨杆）
 
 	// ===== 遥控（串口硬件配置）=====
-	{"RC_RX_PIN",   &rcRxPin},    // 遥控接收器数据输入 GPIO 引脚（UART RX）
-	{"RC_PROTOCOL", &rcProtocol}, // 遥控协议：0=SBUS（电平反相），1=CRSF/ELRS（正逻辑 420000 baud）
-	{"RC_TX_PIN",   &rcTxPin},    // 遥测回传 GPIO 引脚（UART TX）；-1=不启用回传
-	{"RC_BAUD",     &rcBaud},     // 遥控串口波特率（bps）；SBUS=100000，CRSF=420000
+	// 四个参数均绑定 setupRC 回调：修改后立即重新初始化 RC 串口，无需重启即可生效。
+	{"RC_RX_PIN",   &rcRxPin,    setupRC}, // 遥控接收器数据输入 GPIO 引脚（UART RX）
+	{"RC_PROTOCOL", &rcProtocol, setupRC}, // 遥控协议：0=SBUS（电平反相），1=CRSF/ELRS（正逻辑 420000 baud）
+	{"RC_TX_PIN",   &rcTxPin,    setupRC}, // 遥测回传 GPIO 引脚（UART TX）；-1=不启用回传
+	{"RC_BAUD",     &rcBaud,     setupRC}, // 遥控串口波特率（bps）；SBUS=100000，CRSF=420000
 
 	// ===== WiFi =====
 	{"WIFI_MODE",     &wifiMode},      // WiFi 工作模式：0=关闭，1=STA（连接已有热点），2=AP（自建热点）
@@ -193,7 +195,19 @@ Parameter parameters[] = {
 
 void setupParameters() {
 	print("Setup parameters\n");
-	storage.begin("flix", false);
+	if (!storage.begin("flix", false)) {
+		// Preferences.begin() 内部 nvs_flash_init() 失败会直接返回 false（常见于分区表变更/NVS数据版本不兼容/异常断电导致的NVS损坏），
+		// 此时按 ESP-IDF 标准做法擦除分区后重试，否则会永久静默失败（所有参数都无法持久化）。
+		print("[NVS] Preferences.begin 失败，尝试擦除 NVS 分区并重新初始化...\n");
+		nvs_flash_erase();
+		esp_err_t err = nvs_flash_init();
+		print("[NVS] nvs_flash_init 重试结果: err=%d\n", err);
+		if (!storage.begin("flix", false)) {
+			print("[NVS] 二次初始化仍然失败，参数将无法持久化，请检查分区表/硬件！\n");
+		} else {
+			print("[NVS] 擦除重建成功，参数将从代码默认值重新开始（旧数据已丢失，需重新执行 ca/cr 等标定）\n");
+		}
+	}
 	// Read parameters from storage
 	for (auto &parameter : parameters) {
 		if (!storage.isKey(parameter.name)) {
@@ -253,7 +267,8 @@ void syncParameters() {
 	for (auto &parameter : parameters) {
 		if (parameter.getValue() == parameter.cache) continue;
 		if (isnan(parameter.getValue()) && isnan(parameter.cache)) continue; // handle NAN != NAN
-		storage.putFloat(parameter.name, parameter.getValue());
+		size_t written = storage.putFloat(parameter.name, parameter.getValue());
+		if (written != sizeof(float)) continue; // 写入失败时不更新cache，保留旧值，下一轮 1Hz 周期自动重试
 		parameter.cache = parameter.getValue();
 	}
 }
