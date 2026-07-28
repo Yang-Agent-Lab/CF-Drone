@@ -186,15 +186,15 @@ void calibrateRC() {
 	uint16_t zero[16];
 	uint16_t center[16];
 	uint16_t max[16];
-	print("1/8 校准遥控,所有摇杆归中位置[3秒]\n");
+	print("1/8 校准遥控,所有摇杆归中位置，所有开关拨到默认位置，8秒后开始校准\n");
 	pause(8);
-	calibrateRCChannel(NULL, zero, zero, "2/8 左摇杆:向下,右摇杆:居中[3秒]\n...     ...\n...     .o.\n.o.     ...\n");
-	calibrateRCChannel(NULL, center, center, "3/8 左摇杆:居中,右摇杆:居中[3秒]\n...     ...\n.o.     .o.\n...     ...\n");
-	calibrateRCChannel(&throttleChannel, zero, max, "4/8 油门通道识别,左摇杆:向上推到底(油门最大),右摇杆：居中[3秒]\n.o.     ...\n...     .o.\n...     ...\n");
-	calibrateRCChannel(&yawChannel, center, max, "5/8 偏航通道识别,左摇杆:向右推到底(偏航右转)右摇杆:居中[3秒]\n...     ...\n..o     .o.\n...     ...\n");
-	calibrateRCChannel(&pitchChannel, zero, max, "6/8 俯仰通道识别,左摇杆:向下推到底,右摇杆:向上推到底(俯仰前进)[3秒]\n...     .o.\n...     ...\n.o.     ...\n");
-	calibrateRCChannel(&rollChannel, zero, max, "7/8 横滚通道识别,左摇杆:向下推到底,右摇杆:向右推到底(横滚右转)[3秒]\n...     ...\n...     ..o\n.o.     ...\n");
-	calibrateRCChannel(&modeChannel, zero, max, "8/8 模式通道识别,先将解锁开关拨回锁定位置,然后将模式开关拨到最高档位(如手动模式)[3秒]\n");
+	calibrateRCChannel(NULL, zero, zero, "2/8 基准识别，左摇杆:向下,右摇杆:居中[保持8秒]\n...     ...\n...     .o.\n.o.     ...\n");
+	calibrateRCChannel(NULL, center, center, "3/8 基准识别，左摇杆:居中,右摇杆:居中[保持3秒]\n...     ...\n.o.     .o.\n...     ...\n");
+	calibrateRCChannel(&throttleChannel, zero, max, "4/8 油门通道识别,左摇杆:向上推到顶(油门最大),右摇杆：居中[保持3秒]\n.o.     ...\n...     .o.\n...     ...\n");
+	calibrateRCChannel(&yawChannel, center, max, "5/8 偏航通道识别,左摇杆:向右推到底(偏航右转)右摇杆:居中[保持3秒]\n...     ...\n..o     .o.\n...     ...\n");
+	calibrateRCChannel(&pitchChannel, zero, max, "6/8 俯仰通道识别,左摇杆:向下推到底,右摇杆:向上推到顶(俯仰前进)[保持3秒]\n...     .o.\n...     ...\n.o.     ...\n");
+	calibrateRCChannel(&rollChannel, zero, max, "7/8 横滚通道识别,左摇杆:向下推到底,右摇杆:向右推到底(横滚右转)[保持3秒]\n...     ...\n...     ..o\n.o.     ...\n");
+	calibrateRCChannel(&modeChannel, zero, max, "8/8 模式通道识别,将模式开关拨到最高档位(如手动模式)[保持3秒]\n");
 	printRCCalibration();
 }
 
@@ -231,7 +231,7 @@ void calibrateRC() {
 // ✓ 保持3秒
 // → 系统自动识别横滚通道
 //第8步：模式通道识别,操作：
-// ✓ 先将解锁开关拨回锁定位置
+// ✓ 先将解锁开关拨回锁定位置（安全提示，不参与校准）
 // ✓ 然后将模式开关拨到最高档位（如手动模式）
 // ✓ 保持3秒
 // → 系统自动识别模式通道
@@ -242,7 +242,10 @@ void calibrateRCChannel(float *channel, uint16_t in[16], uint16_t out[16], const
 	for (int i = 0; i < 30; i++) readRC(); // try update 30 times max
 	memcpy(out, channels, sizeof(channels));
 
-	if (channel == NULL) return; // no channel to calibrate
+	if (channel == NULL) {
+		print("  -> 已记录当前基准值\n"); // 仅采集基准数据（归中/居中步骤），无需识别通道
+		return;
+	}
 
 	// Find channel that changed the most between in and out
 	int ch = -1, diff = 0;
@@ -256,8 +259,10 @@ void calibrateRCChannel(float *channel, uint16_t in[16], uint16_t out[16], const
 		*channel = ch;
 		channelZero[ch] = in[ch];
 		channelMax[ch] = out[ch];
+		print("  -> 识别成功：通道 %d（变化量 %d，zero=%u max=%u）\n", ch, diff, in[ch], out[ch]);
 	} else {
 		*channel = NAN;
+		print("  -> 识别失败！最大变化量仅 %d（需 > 10），请确认已按提示动作摇杆/开关，且遥控信号正常（可先用 rc 命令确认拨动摇杆时数值有变化）\n", diff);
 	}
 }
 

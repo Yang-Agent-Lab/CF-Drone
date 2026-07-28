@@ -31,10 +31,29 @@
 #define BOARD_SPI_MOSI     6               // 文档 MOSI = GPIO6
 #define BOARD_SPI_CS       7               // 文档 SS   = GPIO7
 
+// ---- I2C（ESP32-C3 默认 I2C 引脚）----
+#define BOARD_I2C_SDA          (-1)        // GPIO8（与 LED 复用，扩展板勿同时启用 LED）
+#define BOARD_I2C_SCL          (-1)        // GPIO9
+
 // ---- LED：GPIO8，蓝色状态灯，低电平有效 ----
 #define BOARD_LED_ENABLED  1
 #define BOARD_LED_PIN      8
 #define BOARD_LED_INVERTED 1               // 低电平点亮
+
+// ---- 性能与资源配置（C3 轻量化）----
+#define BOARD_VBAT_ADC_SAMPLES       8    // ADC采样次数 减少 ADC 阻塞时间，ESP32/S3 默认 16
+#define BOARD_LOG_DURATION           4    // 日志 4 秒缓冲，节省约 22 KB RAM，ESP32/S3 默认 8 秒
+#define BOARD_CONSOLE_LINES          20   // 控制台行数，节省约 7 KB RAM，ESP32/S3 默认 50
+#define BOARD_CONSOLE_LINE_LEN       160  // 每行字符数，ESP32/S3 默认 240
+#define BOARD_MAVLINK_TELEM_FAST_HZ  5    // MAVLink 快速遥测降速，降低 WiFi 占用，ESP32/S3 默认 10 Hz
+#define BOARD_WIFI_ENABLED           0    // C3 单核：WiFi 与飞控共享 CPU，关闭可彻底释放资源给飞控
+#define BOARD_WEB_RC_ENABLED         0    // Web 遥控器依赖 WiFi，随 BOARD_WIFI_ENABLED 同步关闭
+
+// ---- 扩展板传感器 ----
+#undef  EXPANSION_BOARD_ENABLED
+#define EXPANSION_BOARD_ENABLED      0    // C3 硬件引脚冲突，强制禁用扩展板
+#define BOARD_VL53_XSHUT_PIN   (-1)        // VL53L1X XSHUT，暂定 GPIO10
+#define BOARD_PMW_CS_PIN       (-1)        // PMW3901 CS，C3 暂未分配，设为 -1 禁用
 
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
 // ---------------------- ESP32S3 -------------------------
@@ -59,27 +78,83 @@
 #define BOARD_SPI_MOSI     11
 #define BOARD_SPI_CS       10
 
+// ---- I2C（ESP32-S3 默认 I2C 引脚）----
+#define BOARD_I2C_SDA          35          // GPIO35
+#define BOARD_I2C_SCL          36          // GPIO36
+
 // ---- LED：新 PCB 接 GPIO2 普通 LED，驱动方式与 ESP32 相同 ----
 #define BOARD_LED_ENABLED  1
 #define BOARD_LED_PIN      2
 #define BOARD_LED_INVERTED 0
 
+// ---- 性能与资源配置（S3 标准）----
+#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数
+#define BOARD_LOG_DURATION           8  // 日志缓冲秒数
+#define BOARD_CONSOLE_LINES          50  // 控制台行数
+#define BOARD_CONSOLE_LINE_LEN       240  // 每行字符数
+#define BOARD_MAVLINK_TELEM_FAST_HZ  10  // MAVLink 快速遥测降速
+#define BOARD_WIFI_ENABLED           1
+#define BOARD_WEB_RC_ENABLED         1
+
+// ---- 扩展板传感器 ----
+#define EXPANSION_BOARD_ENABLED      1 // 1 = 启用扩展板传感器探测（BMP388/VL53L1X/QMC5883L/PMW3901）;0 = 跳过探测，所有能力标志保持 false，不影响基础飞行功能
+#define BOARD_VL53_XSHUT_PIN   37      // VL53L1X XSHUT，暂定 GPIO37
+#define BOARD_PMW_CS_PIN       38      // PMW3901 CS，暂定 GPIO38
+
 #else  // ---- ESP32 默认配置 ----
 // ---------------------- 默认ESP32 -------------------------
 
 #define BOARD_MOTOR_PINS   {12, 13, 15, 14}  // 电机引脚 RL=GPIO12, RR=GPIO13, FR=GPIO15, FL=GPIO14
+
 #define BOARD_VBAT_ADC_PIN 36              // 电池电压 ADC 引脚（GPIO36，仅输入）
+
 #define BOARD_RC_SERIAL    Serial2         // RC 串口（CRSF/ELRS 默认）
 #define BOARD_RC_RX_PIN    4               // RC RX 引脚（GPIO4）
 #define BOARD_RC_TX_PIN    -1              // 遥测回传预留，-1=暂不启用
 #define BOARD_RC_PROTOCOL  1               // 0=SBUS, 1=CRSF(ELRS)
 #define BOARD_RC_BAUD      420000          // CRSF 标准波特率默认420000；SBUS为100000
+
 #define BOARD_SPI_SCK      18              // SPI 时钟（GPIO18）
 #define BOARD_SPI_MISO     19              // SPI 主入从出（GPIO19）
 #define BOARD_SPI_MOSI     23              // SPI 主出从入（GPIO23）
 #define BOARD_SPI_CS       5               // SPI 片选（GPIO5）
+
+#define BOARD_I2C_SDA      21              // GPIO21（ESP32 I2C SDA 默认）
+#define BOARD_I2C_SCL      22              // GPIO22（ESP32 I2C SCL 默认）
+
 #define BOARD_LED_ENABLED  1               // 启用板载 LED
 #define BOARD_LED_PIN      2               // LED 引脚（GPIO2）
 #define BOARD_LED_INVERTED 0               // 高电平点亮
 
+// ---- 性能与资源配置（ESP32 标准）----
+#define BOARD_VBAT_ADC_SAMPLES       16 // ADC采样次数
+#define BOARD_LOG_DURATION           8  // 日志缓冲秒数
+#define BOARD_CONSOLE_LINES          50  // 控制台行数
+#define BOARD_CONSOLE_LINE_LEN       240  // 每行字符数
+#define BOARD_MAVLINK_TELEM_FAST_HZ  10  // MAVLink 快速遥测降速
+#define BOARD_WIFI_ENABLED           1  // WIFI开关
+#define BOARD_WEB_RC_ENABLED         1  // Web遥控器开关
+
+// ---- 扩展板传感器----
+#define EXPANSION_BOARD_ENABLED      1 // 1 = 启用扩展板传感器探测（BMP388/VL53L1X/QMC5883L/PMW3901）;0 = 跳过探测，所有能力标志保持 false，不影响基础飞行功能
+#define BOARD_VL53_XSHUT_PIN   32          // VL53L1X XSHUT（GPIO32）
+#define BOARD_PMW_CS_PIN       33          // PMW3901 SPI CS（GPIO33）
+
+#endif
+
+// ---- 兜底配置（未知芯片默认全开）----
+
+// ---- 扩展板总开关说明 ----
+//   1 = 启用扩展板传感器探测（BMP388/VL53L1X/QMC5883L/PMW3901）
+//   0 = 跳过探测，所有能力标志保持 false，不影响基础飞行功能
+#if !defined(EXPANSION_BOARD_ENABLED)
+#define EXPANSION_BOARD_ENABLED 1  // 兜底：未知芯片默认启用
+#endif
+
+// ---- WiFi / Web RC 开关兜底（未知芯片默认全开）----
+#if !defined(BOARD_WIFI_ENABLED)
+#define BOARD_WIFI_ENABLED   1
+#endif
+#if !defined(BOARD_WEB_RC_ENABLED)
+#define BOARD_WEB_RC_ENABLED 1
 #endif
