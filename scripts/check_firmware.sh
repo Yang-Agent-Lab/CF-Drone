@@ -2,9 +2,9 @@
 set -eu
 
 case "${1:-}" in
-	safety|sensors|control|command) ;;
+	safety|sensors|control|command|pipeline) ;;
 	*)
-		echo "usage: $0 {safety|sensors|control|command}" >&2
+		echo "usage: $0 {safety|sensors|control|command|pipeline}" >&2
 	exit 2
 		;;
 esac
@@ -58,6 +58,14 @@ if [ "$1" = "command" ]; then
 		echo "v1解码入口不得启动飞行技能状态机" >&2
 		exit 1
 	fi
+	exit 0
+fi
+
+if [ "$1" = "pipeline" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		sensor_telemetry.cpp flight_skills.cpp flight_command_v1.cpp \
+		tests/test_flight_command_pipeline.cpp -o "$tmp_dir/test_flight_command_pipeline"
+	"$tmp_dir/test_flight_command_pipeline"
 	exit 0
 fi
 
