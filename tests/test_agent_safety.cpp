@@ -31,6 +31,22 @@ static void armSession(Gate& gate, uint32_t now_ms = 200, uint32_t request_id = 
 	assert(gate.state() == STATE_AGENT_ARMED);
 }
 
+static void testAckResultParam2() {
+	const uint32_t accepted = static_cast<uint32_t>(
+		encodeAckResultParam2(42, RESULT_ACCEPTED));
+	assert(accepted == 42);
+
+	const uint32_t rejected = static_cast<uint32_t>(
+		encodeAckResultParam2(42, RESULT_INVALID_REQUEST));
+	assert(rejected == (static_cast<uint32_t>(RESULT_INVALID_REQUEST) <<
+	                    kAckResultShift) + 42);
+
+	const uint32_t maximum_request = static_cast<uint32_t>(
+		encodeAckResultParam2(kAckRequestIdMax, RESULT_FLIGHT_REJECTED));
+	assert((maximum_request & kAckRequestIdMax) == kAckRequestIdMax);
+	assert((maximum_request & 0x80000000UL) == 0);
+}
+
 static void testLegalSessionAndDuplicate() {
 	Gate gate;
 	startSession(gate);
@@ -199,7 +215,7 @@ static void testInvalidRequestLatches() {
 	assert(bad_arguments.fault() == FAULT_ILLEGAL_COMMAND);
 }
 
-static void testUnimplementedHighLevelSkills() {
+static void testHighLevelSkillsNeedAgentArm() {
 	const Skill skills[] = {
 		SKILL_TAKEOFF,
 		SKILL_LAND,
@@ -211,12 +227,16 @@ static void testUnimplementedHighLevelSkills() {
 	for (unsigned int i = 0; i < sizeof(skills) / sizeof(skills[0]); ++i) {
 		Gate gate;
 		startSession(gate);
-		Decision decision = gate.handle(
+		Decision unarmed = gate.handle(
 			200, skills[i], 2, kConfirmationCode, true, safeSnapshot());
-		assert(decision.result == RESULT_NOT_IMPLEMENTED);
-		assert(gate.state() == STATE_READY);
-		assert(!decision.arm);
-		assert(!decision.disarm);
+		assert(unarmed.result == RESULT_AGENT_NOT_ARMED);
+		armSession(gate);
+		Snapshot armed = safeSnapshot();
+		armed.armed = true;
+		Decision decision = gate.handle(
+			300, skills[i], 3, kConfirmationCode, true, armed);
+		assert(decision.result == RESULT_ACCEPTED);
+		assert(!decision.arm && !decision.disarm);
 	}
 }
 
@@ -249,13 +269,14 @@ static void testEmergencyStopPriority() {
 }
 
 int main() {
+	testAckResultParam2();
 	testLegalSessionAndDuplicate();
 	testArmPreconditions();
 	testHeartbeatTimeout();
 	testRuntimeHazards();
 	testUnknownSkillAndLatchedFault();
 	testInvalidRequestLatches();
-	testUnimplementedHighLevelSkills();
+	testHighLevelSkillsNeedAgentArm();
 	testForbiddenDirectMessagesAndCommands();
 	testEmergencyStopPriority();
 	puts("agent safety tests: PASS");

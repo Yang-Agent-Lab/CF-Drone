@@ -151,6 +151,7 @@ public:
 
 	MissionState missionState() const { return mission_state_; }
 	Skill activeSkill() const { return active_skill_; }
+	Skill completedSkill() const { return completed_skill_; }
 	Fault fault() const { return fault_; }
 
 private:
@@ -172,6 +173,7 @@ private:
 
 	MissionState mission_state_;
 	Skill active_skill_;
+	Skill completed_skill_;
 	Fault fault_;
 	bool time_seen_;
 	uint64_t last_now_ms_;

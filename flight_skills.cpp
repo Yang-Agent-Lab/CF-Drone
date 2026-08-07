@@ -42,6 +42,7 @@ Target actionTarget(Action action) {
 Machine::Machine()
 	: mission_state_(MISSION_IDLE),
 	  active_skill_(SKILL_NONE),
+	  completed_skill_(SKILL_NONE),
 	  fault_(FAULT_NONE),
 	  time_seen_(false),
 	  last_now_ms_(0),
@@ -136,6 +137,7 @@ Target Machine::fail(Fault fault, Action action) {
 	fault_ = fault;
 	mission_state_ = MISSION_FAILED;
 	active_skill_ = SKILL_NONE;
+	completed_skill_ = SKILL_NONE;
 	last_target_ = actionTarget(action);
 	if (action == ACTION_EMERGENCY_DESCENT) {
 		last_target_.descent_rate_m_s = kEmergencyDescentRateMps;
@@ -149,6 +151,7 @@ Target Machine::startFailsafeLanding(Fault fault, bool redundant,
 	if (fault_ == FAULT_NONE) fault_ = fault;
 	mission_state_ = MISSION_FAILSAFE_LANDING;
 	active_skill_ = SKILL_LAND;
+	completed_skill_ = SKILL_NONE;
 	redundant_landing_ = redundant;
 	skill_start_ms_ = now_ms;
 	target_altitude_m_ = origin_altitude_m_;
@@ -178,6 +181,7 @@ Result Machine::beginAtArm(uint64_t now_ms, const VehicleState& vehicle,
 	}
 
 	mission_state_ = MISSION_ACTIVE;
+	completed_skill_ = SKILL_NONE;
 	mission_start_ms_ = now_ms;
 	origin_x_m_ = vehicle.local_x_m;
 	origin_y_m_ = vehicle.local_y_m;
@@ -370,6 +374,7 @@ Result Machine::start(
 	request_seen_ = true;
 	last_request_id_ = request.request_id;
 	active_skill_ = request.skill;
+	completed_skill_ = SKILL_NONE;
 	skill_start_ms_ = now_ms;
 	ground_seen_ = false;
 	last_target_ = emptyTarget();
@@ -390,6 +395,7 @@ uint64_t Machine::activeTimeoutMs() const {
 }
 
 void Machine::completeSkill() {
+	completed_skill_ = active_skill_;
 	if (active_skill_ == SKILL_TAKEOFF) took_off_ = true;
 	active_skill_ = SKILL_NONE;
 	last_target_ = emptyTarget();
@@ -459,6 +465,7 @@ Target Machine::landingTarget(
 		lock.altitude_m = origin_altitude_m_;
 		lock.yaw_deg = target_yaw_deg_;
 		last_target_ = lock;
+		if (fault_ == FAULT_NONE) completed_skill_ = SKILL_LAND;
 		active_skill_ = SKILL_NONE;
 		mission_state_ =
 			fault_ == FAULT_NONE ? MISSION_COMPLETE : MISSION_FAILED;

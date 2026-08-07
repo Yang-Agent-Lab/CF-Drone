@@ -2,6 +2,8 @@
 // Fail-safe functions
 
 #include "agent_safety.h"
+#include "agent_status.h"
+#include "flight_command_pipeline.h"
 
 bool isInverted = false;  // 当前机身是否处于倒置（Z轴cos < INVERTED_COS_THRESHOLD）
 
@@ -38,7 +40,8 @@ extern PID rollPID, pitchPID, yawPID;              // control.ino
 extern float motThrMin;        // control.ino
 extern bool imuOK;             // imu.ino
 
-agent_safety::Gate agentSafetyGate;
+flight_command_pipeline::Pipeline agentFlightPipeline;
+sensor_telemetry::TelemetryAggregator agentSensorTelemetry;
 
 agent_safety::Snapshot agentSafetySnapshot() {
 	agent_safety::Snapshot snapshot = {};
@@ -60,6 +63,26 @@ agent_safety::Snapshot agentSafetySnapshot() {
 	return snapshot;
 }
 
+agent_status::Snapshot agentStatusSnapshot() {
+	const agent_safety::Snapshot safety = agentSafetySnapshot();
+	const flight_skills::Target target = agentFlightPipeline.lastTarget();
+	agent_status::Snapshot status = {};
+	status.schema_version = agent_status::kSchemaVersion;
+	status.mission_state = agentFlightPipeline.machine().missionState();
+	status.active_skill = agentFlightPipeline.machine().activeSkill();
+	status.completed_skill = agentFlightPipeline.machine().completedSkill();
+	status.flight_fault = agentFlightPipeline.machine().fault();
+	status.last_target_action = target.action;
+	status.agent_fault = agentFlightPipeline.gate().fault();
+	status.gate_state = agentFlightPipeline.gate().state();
+	status.agent_owns_arm = agentFlightPipeline.gate().agentOwnsArm();
+	status.armed = safety.armed;
+	status.manual_control_active = safety.manual_control_active;
+	status.heartbeat_fresh = agentFlightPipeline.gate().heartbeatFresh(millis());
+	status.landed = safety.landed;
+	return status;
+}
+
 void applyAgentSafetyDecision(const agent_safety::Decision& decision) {
 	if (decision.disarm) {
 		armed = false;
@@ -68,26 +91,46 @@ void applyAgentSafetyDecision(const agent_safety::Decision& decision) {
 	if (decision.arm) armed = true;
 }
 
+static flight_skills::VehicleState unavailableAgentVehicle(uint32_t now_ms) {
+	// No estimator is wired into production yet. Keep this explicitly invalid so
+	// the state machine cannot turn placeholder values into a flight request.
+	flight_skills::VehicleState vehicle = {};
+	vehicle.timestamp_ms = now_ms;
+	return vehicle;
+}
+
+static sensor_telemetry::HealthySnapshot unavailableAgentSensors(
+	uint32_t now_ms) {
+	// No driver submits samples until its wiring and calibration are verified.
+	return agentSensorTelemetry.snapshot(now_ms);
+}
+
 agent_safety::Result handleAgentSafetyCommand(
 	uint32_t now_ms, agent_safety::Skill skill, uint32_t request_id,
-	uint32_t confirmation_code, bool arguments_valid) {
-	agent_safety::Decision decision = agentSafetyGate.handle(
-		now_ms, skill, request_id, confirmation_code, arguments_valid,
-		agentSafetySnapshot());
-	applyAgentSafetyDecision(decision);
-	return decision.result;
+	uint32_t confirmation_code, bool arguments_valid,
+	const flight_skills::Request& request) {
+	const agent_safety::Snapshot snapshot = agentSafetySnapshot();
+	const flight_command_pipeline::Outcome outcome = agentFlightPipeline.handle(
+		now_ms, skill, request_id, confirmation_code, arguments_valid, request,
+		snapshot, unavailableAgentVehicle(now_ms), unavailableAgentSensors(now_ms));
+	applyAgentSafetyDecision(outcome.safety);
+	return outcome.result;
 }
 
 agent_safety::Result rejectAgentSafetyMessage() {
-	agent_safety::Decision decision = agentSafetyGate.rejectIllegalMessage();
-	applyAgentSafetyDecision(decision);
-	return decision.result;
+	const flight_command_pipeline::Outcome outcome =
+		agentFlightPipeline.rejectIllegalMessage();
+	applyAgentSafetyDecision(outcome.safety);
+	return outcome.result;
 }
 
 void agentSafetyFailsafe() {
-	agent_safety::Decision decision =
-		agentSafetyGate.update(millis(), agentSafetySnapshot());
-	applyAgentSafetyDecision(decision);
+	const uint32_t now_ms = millis();
+	const agent_safety::Snapshot snapshot = agentSafetySnapshot();
+	const flight_command_pipeline::Outcome outcome = agentFlightPipeline.update(
+		now_ms, snapshot, unavailableAgentVehicle(now_ms),
+		unavailableAgentSensors(now_ms));
+	applyAgentSafetyDecision(outcome.safety);
 }
 
 void failsafe() {

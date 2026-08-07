@@ -10,6 +10,8 @@ static const uint32_t kCommandLongMessageId = 76;
 static const uint16_t kPrivateCommand = 31010;
 static const uint32_t kConfirmationCode = 7319;
 static const uint32_t kHeartbeatTimeoutMs = 1000;
+static const uint32_t kAckRequestIdMax = 16777215UL;
+static const uint8_t kAckResultShift = 24;
 
 enum Skill : uint16_t {
 	SKILL_HEARTBEAT = 1,
@@ -54,10 +56,12 @@ enum Result : uint8_t {
 	RESULT_HEARTBEAT_STALE = 25,
 	RESULT_MANUAL_CONTROL_ACTIVE = 26,
 	RESULT_NOT_LANDED = 27,
+	RESULT_AGENT_NOT_ARMED = 28,
 	RESULT_FAULT_LATCHED = 30,
 	RESULT_UNKNOWN_SKILL = 31,
 	RESULT_INVALID_REQUEST = 32,
 	RESULT_ILLEGAL_MESSAGE = 33,
+	RESULT_FLIGHT_REJECTED = 34,
 };
 
 struct Snapshot {
@@ -77,6 +81,7 @@ struct Decision {
 };
 
 bool isAgentMessageAllowed(uint32_t message_id, uint16_t command);
+int32_t encodeAckResultParam2(uint32_t request_id, Result result);
 
 class Gate {
 public:
@@ -90,9 +95,12 @@ public:
 
 	State state() const { return state_; }
 	Fault fault() const { return fault_; }
+	bool agentOwnsArm() const { return agent_owns_arm_; }
+	bool heartbeatFresh(uint32_t now_ms) const;
+	void abortArm(uint32_t now_ms, uint32_t request_id);
+	void commitFlightSkill(uint32_t request_id, Skill skill);
 
 private:
-	bool heartbeatFresh(uint32_t now_ms) const;
 	Decision latch(Fault fault, Result result);
 
 	State state_;

@@ -2,9 +2,9 @@
 set -eu
 
 case "${1:-}" in
-	safety|sensors|control|command) ;;
+	safety|sensors|control|command|pipeline|status) ;;
 	*)
-		echo "usage: $0 {safety|sensors|control|command}" >&2
+		echo "usage: $0 {safety|sensors|control|command|pipeline|status}" >&2
 	exit 2
 		;;
 esac
@@ -54,10 +54,52 @@ if [ "$1" = "command" ]; then
 		echo "Agent入口没有调用v1解码器" >&2
 		exit 1
 	}
-	if grep -En 'flight_skills::Machine' agent_mavlink.ino safety.ino >/dev/null; then
-		echo "v1解码入口不得启动飞行技能状态机" >&2
+	if grep -En 'flight_skills::Machine' agent_mavlink.ino >/dev/null; then
+		echo "v1解码入口不得直接启动飞行技能状态机" >&2
 		exit 1
 	fi
+	exit 0
+fi
+
+if [ "$1" = "pipeline" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		agent_safety.cpp sensor_telemetry.cpp flight_skills.cpp \
+		flight_command_v1.cpp flight_command_pipeline.cpp \
+		tests/test_flight_command_pipeline.cpp -o "$tmp_dir/test_flight_command_pipeline"
+	"$tmp_dir/test_flight_command_pipeline"
+	exit 0
+fi
+
+if [ "$1" = "status" ]; then
+	"${CXX:-c++}" -std=c++11 -Wall -Wextra -Werror -pedantic -I. \
+		agent_status.cpp tests/test_agent_status.cpp \
+		-o "$tmp_dir/test_agent_status"
+	"$tmp_dir/test_agent_status"
+
+	grep -q 'mavlink_msg_named_value_int_pack' agent_mavlink.ino || {
+		echo "Agent状态没有使用MAVLink common NAMED_VALUE_INT" >&2
+		exit 1
+	}
+	grep -q '"AGT_STAT"' agent_mavlink.ino || {
+		echo "Agent状态名称不是固定AGT_STAT" >&2
+		exit 1
+	}
+	grep -q 'Rate agentStatusRate(10)' agent_mavlink.ino || {
+		echo "Agent状态发布频率没有限制为10Hz" >&2
+		exit 1
+	}
+	grep -q 'sendAgentStatus();' mavlink.ino || {
+		echo "MAVLink发送入口没有发布Agent状态" >&2
+		exit 1
+	}
+	if grep -En \
+		'(motors|attitudeTarget|ratesTarget|torqueTarget|thrustTarget|PID)' \
+		agent_status.h agent_status.cpp >/dev/null; then
+		echo "Agent状态编解码器包含控制或硬件符号" >&2
+		exit 1
+	fi
+
+	echo "agent status protocol checks: PASS"
 	exit 0
 fi
 
@@ -69,6 +111,19 @@ if grep -En \
 	'(motors|attitudeTarget|ratesTarget|torqueTarget|setParameter|doCommand|controlRoll|controlPitch|controlYaw|controlThrottle)' \
 	agent_mavlink.ino >/dev/null; then
 	echo "Agent MAVLink入口包含禁止的直控符号" >&2
+	exit 1
+fi
+
+grep -q 'agentFlightPipeline.handle' safety.ino || {
+	echo "生产安全门没有进入受保护飞行命令管线" >&2
+	exit 1
+}
+grep -q 'agentSensorTelemetry.snapshot' safety.ino || {
+	echo "生产飞行命令没有使用失败关闭的传感器快照" >&2
+	exit 1
+}
+if grep -En 'agentSensorTelemetry\.submit' safety.ino >/dev/null; then
+	echo "生产安全门不得伪造健康传感器数据" >&2
 	exit 1
 fi
 

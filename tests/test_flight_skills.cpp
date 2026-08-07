@@ -208,6 +208,7 @@ static void testNormalSequenceAndTargets() {
 	                        vehicle(now, 0, 0, 0, 0, true), safeStatus());
 	assert(target.action == ACTION_REQUEST_LOCK);
 	assert(machine.missionState() == MISSION_COMPLETE);
+	assert(machine.completedSkill() == SKILL_LAND);
 }
 
 static void testLimits() {
@@ -470,6 +471,21 @@ static void testSensorFailsafesAndLandingContinuity() {
 	assert(target.action == ACTION_LAND);
 	assert(target.velocity_x_m_s == 0.0f);
 	assert(target.velocity_y_m_s == 0.0f);
+	const uint64_t failed_landing_ground_ms = now + 2;
+	target = flow_loss.update(
+		failed_landing_ground_ms,
+		sensors(failed_landing_ground_ms, true, true, true, 0.05f, 0.0f),
+		vehicle(failed_landing_ground_ms, 0, 0, 0, 0, true), safeStatus());
+	assert(target.action == ACTION_LAND);
+	target = flow_loss.update(
+		failed_landing_ground_ms + kGroundConfirmMs,
+		sensors(failed_landing_ground_ms + kGroundConfirmMs, true, true, true,
+		        0.05f, 0.0f),
+		vehicle(failed_landing_ground_ms + kGroundConfirmMs, 0, 0, 0, 0, true),
+		safeStatus());
+	assert(target.action == ACTION_REQUEST_LOCK);
+	assert(flow_loss.missionState() == MISSION_FAILED);
+	assert(flow_loss.completedSkill() == SKILL_NONE);
 
 	Machine stale_flow;
 	becomeAirborne(stale_flow, now);
